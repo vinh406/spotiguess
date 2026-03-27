@@ -45,9 +45,9 @@
 		"cf-typegen": "wrangler types",
 		"check": "tsc && vite build && wrangler deploy --dry-run",
 		"deploy": "wrangler deploy",
-		"dev": "vite",
+		"dev": "vite --host 127.0.0.1",
 		"lint": "eslint .",
-		"preview": "npm run build && vite preview",
+		"preview": "npm run build && wrangler dev",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push"
