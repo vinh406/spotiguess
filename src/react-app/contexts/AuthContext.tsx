@@ -1,0 +1,84 @@
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createAuthClient } from "better-auth/client";
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  image?: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: () => void;
+  logout: () => Promise<void>;
+  checkSession: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const authClient = createAuthClient();
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const checkSession = async () => {
+    try {
+      const session = await authClient.getSession();
+      if (session?.data?.user) {
+        setUser(session.data.user as User);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Failed to check session:", error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const login = async () => {
+    try {
+      await authClient.signIn.social({
+        provider: "spotify",
+      });
+    } catch (error) {
+      console.error("Failed to login:", error);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await authClient.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error("Failed to logout:", error);
+    }
+  };
+
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const value = {
+    user,
+    isLoading,
+    isAuthenticated: !!user,
+    login,
+    logout,
+    checkSession,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}
