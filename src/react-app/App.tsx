@@ -1,6 +1,8 @@
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
+import RoomPage from "./pages/RoomPage";
 import LoadingSpinner from "./components/common/LoadingSpinner";
 
 function AppContent() {
@@ -22,14 +24,32 @@ function AppContent() {
     );
   }
 
-  return isAuthenticated ? <HomePage /> : <LoginPage />;
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={isAuthenticated ? <HomePage /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
+      />
+      <Route
+        path="/room/:roomName"
+        element={<RoomPage />}
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

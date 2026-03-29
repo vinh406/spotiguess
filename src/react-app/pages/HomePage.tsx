@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
+import Header from "../components/Header";
 import ActionCard from "../components/common/ActionCard";
 import StatCard from "../components/common/StatCard";
 
 export default function HomePage() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
@@ -12,8 +15,12 @@ export default function HomePage() {
   const handleCreateRoom = async () => {
     setIsCreating(true);
     try {
-      // TODO: Implement room creation API call
-      console.log("Creating room...");
+      // Generate a random room code
+      const roomCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      // Store username in session storage
+      sessionStorage.setItem("chat-username", user?.name || "Player");
+      // Navigate to the room
+      navigate(`/room/${roomCode}`);
     } catch (error) {
       console.error("Failed to create room:", error);
     } finally {
@@ -26,8 +33,10 @@ export default function HomePage() {
     
     setIsJoining(true);
     try {
-      // TODO: Implement room join API call
-      console.log("Joining room:", roomCode);
+      // Store username in session storage
+      sessionStorage.setItem("chat-username", user?.name || "Player");
+      // Navigate to the room
+      navigate(`/room/${roomCode}`);
     } catch (error) {
       console.error("Failed to join room:", error);
     } finally {
@@ -46,41 +55,28 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Header */}
-      <header className="border-b border-gray-700/50 bg-gray-900/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <Header>
+        {user && (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-              </svg>
-            </div>
-            <span className="text-2xl font-bold text-white">Spotiguess</span>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {user && (
-              <div className="flex items-center gap-3">
-                {user.image && (
-                  <img 
-                    src={user.image} 
-                    alt={user.name}
-                    className="w-8 h-8 rounded-full"
-                  />
-                )}
-                <span className="text-gray-300 font-medium">{user.name}</span>
-                <button
-                  onClick={handleLogout}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                </button>
-              </div>
+            {user.image && (
+              <img 
+                src={user.image} 
+                alt={user.name}
+                className="w-8 h-8 rounded-full"
+              />
             )}
+            <span className="text-gray-300 font-medium hidden md:block">{user.name}</span>
+            <button
+              onClick={handleLogout}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
           </div>
-        </div>
-      </header>
+        )}
+      </Header>
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-6 py-16">

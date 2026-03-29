@@ -20,6 +20,7 @@
 		"run_worker_first": [
 			"/docs",
 			"/api/*",
+			"/ws/*",
 		]
 	},
 	/**
@@ -39,11 +40,27 @@
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
-	"vars": {
-		"BETTER_AUTH_URL": "http://127.0.0.1:8787",
-		"SPOTIFY_CLIENT_ID": "your-spotify-client-id",
-		"SPOTIFY_CLIENT_SECRET": "your-spotify-client-secret"
-	}
+	// "vars": {
+	// 	"BETTER_AUTH_URL": "http://127.0.0.1:8787",
+	// 	"SPOTIFY_CLIENT_ID": "your-spotify-client-id",
+	// 	"SPOTIFY_CLIENT_SECRET": "your-spotify-client-secret"
+	// },
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "WEBSOCKET_HIBERNATION_SERVER",
+				"class_name": "WebSocketHibernationServer"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"WebSocketHibernationServer"
+			]
+		}
+	]
 	/**
 	 * Service Bindings (communicate between multiple Workers)
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
