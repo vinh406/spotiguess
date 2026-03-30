@@ -3,22 +3,8 @@ import { useNavigate, useParams } from "react-router";
 import { Chat } from "../components/Chat";
 import { useAuth } from "../contexts/AuthContext";
 import Header from "../components/Header";
-
-interface Player {
-  userId: string;
-  username: string;
-  userImage?: string;
-  isReady: boolean;
-  isHost: boolean;
-}
-
-interface Playlist {
-  id: string;
-  name: string;
-  description: string;
-  trackCount: number;
-  imageUrl?: string;
-}
+import type { Player, Playlist } from "../../shared/types";
+import { MOCK_PLAYLISTS, DEFAULT_ROOM_SETTINGS, TIME_PER_ROUND_OPTIONS, ROUND_OPTIONS } from "../../shared/constants";
 
 export default function RoomPage() {
   const navigate = useNavigate();
@@ -37,70 +23,16 @@ export default function RoomPage() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [spotifyLink, setSpotifyLink] = useState("");
+  const [readyTrigger, setReadyTrigger] = useState(0); // Increment to trigger ready in Chat
+  const [settingsTrigger, setSettingsTrigger] = useState<{ rounds: number; timePerRound: number } | null>(null); // Send settings update to server
+  const [playlistTrigger, setPlaylistTrigger] = useState<Playlist | null>(null); // Send playlist update to server
   const [gameSettings, setGameSettings] = useState({
-    rounds: 10,
-    timePerRound: 20,
+    rounds: DEFAULT_ROOM_SETTINGS.rounds,
+    timePerRound: DEFAULT_ROOM_SETTINGS.timePerRound / 1000, // Convert ms to seconds
   });
 
-  // Mock playlists for UI demonstration
-  const mockPlaylists: Playlist[] = [
-    {
-      id: "1",
-      name: "Today's Top Hits",
-      description: "The hottest tracks right now",
-      trackCount: 50,
-      imageUrl: "https://picsum.photos/seed/playlist1/100/100",
-    },
-    {
-      id: "2",
-      name: "RapCaviar",
-      description: "New music from Drake, Travis Scott & more",
-      trackCount: 50,
-      imageUrl: "https://picsum.photos/seed/playlist2/100/100",
-    },
-    {
-      id: "3",
-      name: "All Out 2010s",
-      description: "The biggest songs of the 2010s",
-      trackCount: 100,
-      imageUrl: "https://picsum.photos/seed/playlist3/100/100",
-    },
-    {
-      id: "4",
-      name: "Rock Classics",
-      description: "Rock legends & iconic songs",
-      trackCount: 75,
-      imageUrl: "https://picsum.photos/seed/playlist4/100/100",
-    },
-    {
-      id: "5",
-      name: "Chill Vibes",
-      description: "Kick back and relax",
-      trackCount: 60,
-      imageUrl: "https://picsum.photos/seed/playlist5/100/100",
-    },
-    {
-      id: "6",
-      name: "Workout Mix",
-      description: "Get pumped with these tracks",
-      trackCount: 45,
-      imageUrl: "https://picsum.photos/seed/playlist6/100/100",
-    },
-    {
-      id: "7",
-      name: "Indie Favorites",
-      description: "The best indie music",
-      trackCount: 80,
-      imageUrl: "https://picsum.photos/seed/playlist7/100/100",
-    },
-    {
-      id: "8",
-      name: "Electronic Dance",
-      description: "EDM hits for the dance floor",
-      trackCount: 55,
-      imageUrl: "https://picsum.photos/seed/playlist8/100/100",
-    },
-  ];
+  // Use mock playlists from constants
+  const mockPlaylists = MOCK_PLAYLISTS;
 
   useEffect(() => {
     // Wait for auth to load
@@ -177,13 +109,31 @@ export default function RoomPage() {
   };
 
   const handleToggleReady = () => {
+    // Toggle local ready state
     setIsReady(!isReady);
-    // Update player ready status
-    setPlayers((prev) =>
-      prev.map((p) =>
-        p.userId === currentUser?.userId ? { ...p, isReady: !isReady } : p
-      )
-    );
+    // Increment trigger to send ready message via Chat component
+    setReadyTrigger((prev) => prev + 1);
+  };
+
+  // Handle settings updates from server
+  const handleSettingsUpdate = (settings: { maxPlayers: number; rounds: number; timePerRound: number }) => {
+    console.log('[RoomPage] Received settings update from server:', settings);
+    setGameSettings({
+      rounds: settings.rounds,
+      timePerRound: settings.timePerRound / 1000, // Convert ms to seconds
+    });
+  };
+
+  // Handle playlist updates from server
+  const handlePlaylistUpdate = (playlist: { id: string; name: string; description?: string; trackCount: number; imageUrl?: string }) => {
+    console.log('[RoomPage] Received playlist update from server:', playlist);
+    setSelectedPlaylist({
+      id: playlist.id,
+      name: playlist.name,
+      description: playlist.description || '',
+      trackCount: playlist.trackCount,
+      imageUrl: playlist.imageUrl || '',
+    });
   };
 
   const handleStartGame = () => {
@@ -198,6 +148,10 @@ export default function RoomPage() {
 
   const handleSelectPlaylist = (playlist: Playlist) => {
     setSelectedPlaylist(playlist);
+    // Send playlist update to server if host
+    if (isHost) {
+      setPlaylistTrigger(playlist);
+    }
     setShowPlaylistModal(false);
   };
 
@@ -364,7 +318,12 @@ export default function RoomPage() {
                 {/* Playlist Selection */}
                 <button
                   onClick={() => setShowPlaylistModal(true)}
-                  className="flex-1 flex items-center gap-3 px-4 py-3 bg-gray-700/30 rounded-xl hover:bg-gray-700/50 transition-all border border-gray-600/30"
+                  disabled={!isHost}
+                  className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${
+                    isHost
+                      ? "bg-gray-700/30 hover:bg-gray-700/50 border-gray-600/30"
+                      : "bg-gray-700/10 border-gray-600/10 opacity-50 cursor-not-allowed"
+                  }`}
                 >
                   <svg
                     className="w-5 h-5 text-green-400"
@@ -576,6 +535,23 @@ export default function RoomPage() {
                 username={currentUser.username}
                 room={roomName || "general"}
                 userId={currentUser.userId}
+                userImage={user?.image || undefined}
+                readyTrigger={readyTrigger}
+                settingsTrigger={settingsTrigger}
+                playlistTrigger={playlistTrigger}
+                onSettingsUpdate={handleSettingsUpdate}
+                onPlaylistUpdate={handlePlaylistUpdate}
+                onUsersUpdate={(users) => {
+                  setPlayers(
+                    users.map((u) => ({
+                      userId: u.userId,
+                      username: u.username,
+                      userImage: u.userImage || undefined,
+                      isReady: u.isReady,
+                      isHost: u.isHost,
+                    }))
+                  );
+                }}
               />
             </div>
           </div>
@@ -614,12 +590,15 @@ export default function RoomPage() {
                   Number of Rounds
                 </label>
                 <div className="grid grid-cols-4 gap-3">
-                  {[5, 10, 15, 20].map((rounds) => (
+                  {ROUND_OPTIONS.map((rounds) => (
                     <button
                       key={rounds}
-                      onClick={() =>
-                        setGameSettings((prev) => ({ ...prev, rounds }))
-                      }
+                      onClick={() => {
+                        if (isHost) {
+                          setGameSettings((prev) => ({ ...prev, rounds }));
+                          setSettingsTrigger({ rounds, timePerRound: gameSettings.timePerRound });
+                        }
+                      }}
                       disabled={!isHost}
                       className={`py-3 rounded-xl font-medium transition-all ${
                         gameSettings.rounds === rounds
@@ -638,15 +617,18 @@ export default function RoomPage() {
                   Time per Round (seconds)
                 </label>
                 <div className="grid grid-cols-5 gap-3">
-                  {[10, 15, 20, 25, 30].map((time) => (
+                  {TIME_PER_ROUND_OPTIONS.map((time) => (
                     <button
                       key={time}
-                      onClick={() =>
-                        setGameSettings((prev) => ({
-                          ...prev,
-                          timePerRound: time,
-                        }))
-                      }
+                      onClick={() => {
+                        if (isHost) {
+                          setGameSettings((prev) => ({
+                            ...prev,
+                            timePerRound: time,
+                          }));
+                          setSettingsTrigger({ rounds: gameSettings.rounds, timePerRound: time });
+                        }
+                      }}
                       disabled={!isHost}
                       className={`py-3 rounded-xl font-medium transition-all ${
                         gameSettings.timePerRound === time

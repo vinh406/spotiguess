@@ -1,35 +1,50 @@
 import { useState, useEffect, useRef } from "react";
-
-interface User {
-  username: string;
-  userId: string;
-  joinedAt: number;
-}
+import type {
+  UserSession,
+  RoomSettings,
+  Playlist,
+} from "../../shared/types";
 
 interface Message {
   type: string;
+  timestamp: number;
   content?: string;
   message?: string;
-  timestamp: number;
   connections?: number;
   totalConnections?: number;
   userId?: string;
   username?: string;
   room?: string;
-  users?: User[];
+  users?: UserSession[];
+  settings?: RoomSettings;
+  playlist?: Playlist;
+  payload?: {
+    eventType?: string;
+    category?: string;
+    icon?: string;
+    content?: string;
+    data?: Record<string, unknown>;
+  };
 }
 
 interface ChatProps {
   username: string;
   room: string;
   userId: string;
+  userImage?: string;
+  onUsersUpdate?: (users: UserSession[]) => void;
+  onSettingsUpdate?: (settings: RoomSettings) => void;
+  onPlaylistUpdate?: (playlist: Playlist) => void;
+  readyTrigger?: number; // Increment to trigger ready toggle
+  settingsTrigger?: { rounds: number; timePerRound: number } | null; // Trigger settings update to server
+  playlistTrigger?: Playlist | null; // Trigger playlist update to server
 }
 
-export function Chat({ username, room, userId }: ChatProps) {
+export function Chat({ username, room, userId, userImage, onUsersUpdate, onSettingsUpdate, onPlaylistUpdate, readyTrigger, settingsTrigger, playlistTrigger }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserSession[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -40,6 +55,51 @@ export function Chat({ username, room, userId }: ChatProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Handle ready trigger from parent
+  useEffect(() => {
+    if (readyTrigger && readyTrigger > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: "ready",
+          timestamp: Date.now(),
+        })
+      );
+    }
+  }, [readyTrigger]);
+
+  // Handle settings trigger from parent (host updates settings)
+  useEffect(() => {
+    if (settingsTrigger && wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[Chat] Sending settings update to server:', settingsTrigger);
+      wsRef.current.send(
+        JSON.stringify({
+          type: "update_settings",
+          payload: {
+            rounds: settingsTrigger.rounds,
+            timePerRound: settingsTrigger.timePerRound * 1000, // Convert seconds to ms
+          },
+          timestamp: Date.now(),
+        })
+      );
+    }
+  }, [settingsTrigger]);
+
+  // Handle playlist trigger from parent (host selects playlist)
+  useEffect(() => {
+    if (playlistTrigger && wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[Chat] Sending playlist update to server:', playlistTrigger);
+      wsRef.current.send(
+        JSON.stringify({
+          type: "update_playlist",
+          payload: {
+            playlist: playlistTrigger,
+          },
+          timestamp: Date.now(),
+        })
+      );
+    }
+  }, [playlistTrigger]);
 
   useEffect(() => {
     // Create WebSocket connection
@@ -62,6 +122,7 @@ export function Chat({ username, room, userId }: ChatProps) {
           username,
           room,
           userId,
+          userImage,
           timestamp: Date.now(),
         })
       );
@@ -70,10 +131,61 @@ export function Chat({ username, room, userId }: ChatProps) {
     ws.onmessage = (event) => {
       try {
         const message: Message = JSON.parse(event.data);
+        console.log('[Chat] Received message:', message.type, message);
 
         // Handle different message types
-        if (message.type === "user_joined" || message.type === "user_left") {
-          setUsers(message.users || []);
+        if (message.type === "user_joined" || message.type === "user_left" || message.type === "users_updated") {
+          const newUsers = message.users || [];
+          console.log('[Chat] Users updated:', newUsers);
+          setUsers(newUsers);
+          // Notify parent component about user updates
+          if (onUsersUpdate) {
+            onUsersUpdate(newUsers);
+          }
+        }
+
+        // Handle settings updates
+        if (message.type === "settings_updated" && message.settings) {
+          console.log('[Chat] Settings updated received:', message.settings);
+          if (onSettingsUpdate) {
+            onSettingsUpdate(message.settings);
+          }
+        }
+
+        // Handle playlist updates
+        if (message.type === "playlist_updated" && message.playlist) {
+          console.log('[Chat] Playlist updated received:', message.playlist);
+          if (onPlaylistUpdate) {
+            onPlaylistUpdate(message.playlist);
+          }
+        }
+
+        // Handle game events
+        if (message.type === "game_event" && message.payload) {
+          // Game events are added to messages for display in chat
+          console.log("Game event received:", message.payload);
+        }
+
+        // Handle room created (first player joins)
+        if (message.type === "room_created" && message.settings) {
+          console.log('[Chat] Room created with settings:', message.settings);
+          if (onSettingsUpdate) {
+            onSettingsUpdate(message.settings);
+          }
+          if (message.playlist && onPlaylistUpdate) {
+            onPlaylistUpdate(message.playlist);
+          }
+        }
+
+        // Handle room state (new player joins, receive current state)
+        if (message.type === "room_state" && message.settings) {
+          console.log('[Chat] Room state received:', message);
+          if (onSettingsUpdate) {
+            onSettingsUpdate(message.settings);
+          }
+          if (message.playlist && onPlaylistUpdate) {
+            onPlaylistUpdate(message.playlist);
+          }
         }
 
         // Handle error messages
