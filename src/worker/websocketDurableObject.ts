@@ -1,67 +1,40 @@
 import { DurableObject } from "cloudflare:workers";
 import type {
   UserSession,
-  RoomSettings,
-  Playlist,
   IncomingMessage,
-  ErrorMessage,
   JoinMessage,
   ChatMessage,
   UpdateSettingsMessage,
   UpdatePlaylistMessage,
 } from "../shared/types";
-import { DEFAULT_ROOM_SETTINGS, SETTINGS_LIMITS } from "../shared/constants";
+import { MessageBuilders, broadcastToRoom, sendToSocket } from "./lib/websocket";
+import { RoomManager } from "./lib/websocket/roomManager";
 
-// Durable Object
+// Durable Object that manages WebSocket connections and room state for a single game instance
 export class WebSocketHibernationServer extends DurableObject {
-  private sessions = new Map<WebSocket, UserSession>();
-  private roomSettings: RoomSettings = { ...DEFAULT_ROOM_SETTINGS };
-  private roomPlaylist: Playlist | null = null;  // Playlist selected by host
+  private roomManager: RoomManager;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
 
-    this.ctx.getWebSockets().forEach((webSocket) => {
-      let meta = webSocket.deserializeAttachment() as UserSession;
+    this.roomManager = new RoomManager();
 
-      this.sessions.set(webSocket, {
-        ...meta,
-      });
+    // Restore existing sessions from hibernated WebSocket connections
+    const existingSessions = new Map<WebSocket, UserSession>();
+    ctx.getWebSockets().forEach((webSocket) => {
+      const meta = webSocket.deserializeAttachment() as UserSession | null;
+      if (meta) {
+        existingSessions.set(webSocket, { ...meta });
+      }
     });
+    this.roomManager.setSessions(existingSessions);
   }
 
   // ============================================================================
-  // Helper Methods
+  // WebSocket Connection Handling
   // ============================================================================
-
-  private sendError(ws: WebSocket, message: string): void {
-    const errorMessage: ErrorMessage = {
-      type: "error",
-      message,
-      timestamp: Date.now(),
-    };
-    ws.send(JSON.stringify(errorMessage));
-  }
-
-  private validateSession(ws: WebSocket): UserSession | null {
-    const session = this.sessions.get(ws);
-    if (!session) {
-      this.sendError(ws, "You must join a room first");
-      return null;
-    }
-    return session;
-  }
-
-  private validateHost(ws: WebSocket, session: UserSession): boolean {
-    if (!session.isHost) {
-      this.sendError(ws, "Only the host can perform this action");
-      return false;
-    }
-    return true;
-  }
 
   async fetch(_request: Request): Promise<Response> {
-    // Creates two ends of a WebSocket connection.
     const webSocketPair = new WebSocketPair();
     const client = webSocketPair[0] as WebSocket;
     const server = webSocketPair[1] as WebSocket;
@@ -70,15 +43,6 @@ export class WebSocketHibernationServer extends DurableObject {
       return new Response("WebSocket creation failed", { status: 500 });
     }
 
-    // Calling `acceptWebSocket()` informs the runtime that this WebSocket is to begin terminating
-    // request within the Durable Object. It has the effect of "accepting" the connection,
-    // and allowing the WebSocket to send and receive messages.
-    // Unlike `ws.accept()`, `state.acceptWebSocket(ws)` informs the Workers Runtime that the WebSocket
-    // is "hibernatable", so the runtime does not need to pin this Durable Object to memory while
-    // the connection is open. During periods of inactivity, the Durable Object can be evicted
-    // from memory, but the WebSocket connection will remain open. If at some later point the
-    // WebSocket receives a message, the runtime will recreate the Durable Object
-    // (run the `constructor`) and deliver the message to the appropriate handler.
     this.ctx.acceptWebSocket(server);
 
     return new Response(null, {
@@ -91,420 +55,24 @@ export class WebSocketHibernationServer extends DurableObject {
     ws: WebSocket,
     message: string | ArrayBuffer
   ): Promise<void> {
-    // Convert ArrayBuffer to string if necessary
     const messageString =
-      typeof message === "string" ? message : new TextDecoder().decode(message);
+      typeof message === "string"
+        ? message
+        : new TextDecoder().decode(message);
 
-    // Parse the incoming message
-    let messageData;
+    let parsedMessage: IncomingMessage;
     try {
-      messageData = JSON.parse(messageString);
-    } catch (e) {
-      // If it's not valid JSON, treat it as a simple text message
-      messageData = {
+      parsedMessage = JSON.parse(messageString);
+    } catch {
+      // Handle non-JSON messages as chat messages
+      parsedMessage = {
         type: "message",
         content: messageString,
         timestamp: Date.now(),
       };
     }
 
-    // Handle different message types
-    switch (messageData.type) {
-      case "join":
-        await this.handleJoinRoom(ws, messageData);
-        break;
-      case "leave": {
-        const session = this.sessions.get(ws);
-        if (session) {
-          await this.handleLeaveRoom(ws, session);
-        }
-        break;
-      }
-      case "message":
-      case "chat_message":
-        await this.handleChatMessage(ws, messageData);
-        break;
-      case "ready":
-        await this.handleReady(ws, messageData);
-        break;
-      case "update_settings":
-        await this.handleUpdateSettings(ws, messageData);
-        break;
-      case "update_playlist":
-        await this.handleUpdatePlaylist(ws, messageData);
-        break;
-      case "start_game":
-        await this.handleStartGame(ws, messageData);
-        break;
-      default:
-        // Unknown message type, treat as regular message
-        await this.handleChatMessage(ws, messageData);
-    }
-  }
-
-  private async handleJoinRoom(ws: WebSocket, data: JoinMessage): Promise<void> {
-    const { username, room, userId, userImage } = data;
-
-    // Validate required fields
-    if (!username || !room || !userId) {
-      this.sendError(ws, "Missing required fields: username, room, or userId");
-      return;
-    }
-
-    // Check if user is already in this room
-    const existingSession = Array.from(this.sessions.entries()).find(
-      ([_ws, session]) => session.userId === userId && session.room === room
-    );
-
-    if (existingSession) {
-      this.sendError(ws, "You are already in this room");
-      return;
-    }
-
-    // Check if this is the first player (becomes host)
-    const existingPlayers = this.getUsersInRoom(room);
-    const isFirstPlayer = existingPlayers.length === 0;
-
-    // Store user session
-    this.sessions.set(ws, {
-      username,
-      room,
-      userId,
-      userImage: userImage || null,
-      isHost: isFirstPlayer,
-      isReady: false,
-      joinedAt: Date.now(),
-    });
-
-    ws.serializeAttachment({
-      username,
-      room,
-      userId,
-      userImage: userImage || null,
-      isHost: isFirstPlayer,
-      isReady: false,
-      joinedAt: Date.now(),
-    });
-
-    // Get users in the same room
-    const roomUsers = this.getUsersInRoom(room);
-
-    // Notify all users in the room that someone joined
-    const joinMessage = {
-      type: "user_joined",
-      username,
-      userId,
-      room,
-      timestamp: Date.now(),
-      users: roomUsers,
-      isHost: isFirstPlayer,
-    };
-
-    this.broadcastToRoom(room, joinMessage);
-
-    // If this is the first player, also broadcast room settings and playlist
-    if (isFirstPlayer) {
-      this.broadcastToRoom(room, {
-        type: "room_created",
-        room,
-        settings: this.roomSettings,
-        playlist: this.roomPlaylist,
-        timestamp: Date.now(),
-      });
-    } else {
-      // Send current room state to the new player only
-      ws.send(
-        JSON.stringify({
-          type: "room_state",
-          room,
-          settings: this.roomSettings,
-          playlist: this.roomPlaylist,
-          timestamp: Date.now(),
-        })
-      );
-    }
-  }
-
-  private async handleLeaveRoom(ws: WebSocket, session: UserSession): Promise<void> {
-    const { username, room, userId, isHost } = session;
-
-    // Store remaining users before deletion
-    const remainingUsers = Array.from(this.sessions.entries())
-      .filter(([s, _]) => s !== ws && _.room === room)
-      .map(([_, s]) => s);
-
-    // Remove user session
-    this.sessions.delete(ws);
-
-    // Handle host transfer if the leaving user was host
-    if (isHost && remainingUsers.length > 0) {
-      // Transfer host to first remaining player
-      const newHost = remainingUsers[0];
-      if (newHost) {
-        newHost.isHost = true;
-
-        // Find the WebSocket for the new host and update attachment
-        for (const [_socket, sess] of this.sessions.entries()) {
-          if (sess.userId === newHost.userId) {
-            _socket.serializeAttachment(sess);
-            break;
-          }
-        }
-
-        // Broadcast host change
-        this.broadcastGameEvent(
-          room,
-          "host_changed",
-          "crown",
-          `${newHost.username} is now the host`,
-          { newHostId: newHost.userId, newHostName: newHost.username }
-        );
-      }
-    }
-
-    // Get remaining users in the room
-    const roomUsers = this.getUsersInRoom(room);
-
-    // Notify remaining users in the room
-    const leaveMessage = {
-      type: "user_left",
-      username,
-      userId,
-      room,
-      timestamp: Date.now(),
-      users: roomUsers,
-    };
-
-    this.broadcastToRoom(room, leaveMessage);
-  }
-
-  private async handleChatMessage(ws: WebSocket, data: ChatMessage): Promise<void> {
-    const session = this.validateSession(ws);
-    if (!session) return;
-
-    // Add session info to message
-    const messageWithSession = {
-      ...data,
-      username: session.username,
-      userId: session.userId,
-      room: session.room,
-      timestamp: data.timestamp || Date.now(),
-    };
-
-    // Broadcast to room
-    this.broadcastToRoom(session.room, messageWithSession);
-  }
-
-  private async handleReady(ws: WebSocket, _data: IncomingMessage): Promise<void> {
-    const session = this.validateSession(ws);
-    if (!session) return;
-
-    // Toggle ready state
-    const newReadyState = !session.isReady;
-    session.isReady = newReadyState;
-
-    // Update serialization
-    ws.serializeAttachment(session);
-
-    // Broadcast game event
-    this.broadcastGameEvent(
-      session.room,
-      newReadyState ? "player_ready" : "player_not_ready",
-      newReadyState ? "check-circle" : "x-circle",
-      newReadyState ? `${session.username} is ready` : `${session.username} is no longer ready`,
-      { userId: session.userId, isReady: newReadyState }
-    );
-
-    // Also broadcast updated user list
-    const roomUsers = this.getUsersInRoom(session.room);
-    this.broadcastToRoom(session.room, {
-      type: "users_updated",
-      users: roomUsers,
-      timestamp: Date.now(),
-    });
-  }
-
-  private async handleUpdateSettings(ws: WebSocket, data: UpdateSettingsMessage): Promise<void> {
-    const session = this.validateSession(ws);
-    if (!session) return;
-
-    // Only host can update settings
-    if (!this.validateHost(ws, session)) return;
-
-    // Validate and update settings
-    const { maxPlayers, rounds, timePerRound } = data.payload || {};
-
-    if (maxPlayers !== undefined) {
-      this.roomSettings.maxPlayers = Math.max(
-        SETTINGS_LIMITS.maxPlayers.min,
-        Math.min(SETTINGS_LIMITS.maxPlayers.max, maxPlayers)
-      );
-    }
-    if (rounds !== undefined) {
-      this.roomSettings.rounds = Math.max(
-        SETTINGS_LIMITS.rounds.min,
-        Math.min(SETTINGS_LIMITS.rounds.max, rounds)
-      );
-    }
-    if (timePerRound !== undefined) {
-      this.roomSettings.timePerRound = Math.max(
-        SETTINGS_LIMITS.timePerRound.min,
-        Math.min(SETTINGS_LIMITS.timePerRound.max, timePerRound)
-      );
-    }
-
-    // Broadcast settings update
-    this.broadcastToRoom(session.room, {
-      type: "settings_updated",
-      settings: this.roomSettings,
-      timestamp: Date.now(),
-    });
-
-    // Also broadcast as game event
-    this.broadcastGameEvent(
-      session.room,
-      "settings_changed",
-      "settings",
-      `Game settings updated: ${this.roomSettings.rounds} rounds, ${this.roomSettings.timePerRound / 1000}s per round`,
-      { settings: this.roomSettings }
-    );
-  }
-
-  private async handleUpdatePlaylist(ws: WebSocket, data: UpdatePlaylistMessage): Promise<void> {
-    const session = this.validateSession(ws);
-    if (!session) return;
-
-    // Only host can update playlist
-    if (!this.validateHost(ws, session)) return;
-
-    // Update playlist
-    const { playlist } = data.payload || {};
-    if (playlist) {
-      this.roomPlaylist = playlist;
-
-      // Broadcast playlist update
-      this.broadcastToRoom(session.room, {
-        type: "playlist_updated",
-        playlist: this.roomPlaylist,
-        timestamp: Date.now(),
-      });
-
-      // Also broadcast as game event
-      this.broadcastGameEvent(
-        session.room,
-        "playlist_changed",
-        "music",
-        `Playlist changed to: ${playlist.name}`,
-        { playlist: this.roomPlaylist }
-      );
-    }
-  }
-
-  private async handleStartGame(ws: WebSocket, _data: IncomingMessage): Promise<void> {
-    const session = this.validateSession(ws);
-    if (!session) return;
-
-    // Only host can start game
-    if (!this.validateHost(ws, session)) return;
-
-    // Get all players
-    const roomUsers = this.getUsersInRoom(session.room);
-
-    // Check if there are enough players
-    if (roomUsers.length < 1) {
-      this.sendError(ws, "Need at least 1 player to start");
-      return;
-    }
-
-
-    this.broadcastGameEvent(
-      session.room,
-      "game_started",
-      "play",
-      `${session.username} started the game! ${this.roomSettings.rounds} rounds ahead.`,
-      { settings: this.roomSettings, playerCount: roomUsers.length }
-    );
-  }
-
-  private broadcastGameEvent(
-    room: string,
-    eventType: string,
-    icon: string,
-    content: string,
-    data: Record<string, unknown> = {}
-  ): void {
-    const message = {
-      type: "game_event",
-      payload: {
-        eventType,
-        category: eventType.includes("ready") || eventType.includes("settings") || eventType.includes("host")
-          ? "system" : "game",
-        icon,
-        content,
-        data,
-        timestamp: Date.now(),
-      },
-    };
-    this.broadcastToRoom(room, message);
-  }
-
-  private getUsersInRoom(
-    room: string
-  ): Array<{
-    username: string;
-    userId: string;
-    userImage: string | null;
-    isHost: boolean;
-    isReady: boolean;
-    joinedAt: number;
-  }> {
-    const users: Array<{
-      username: string;
-      userId: string;
-      userImage: string | null;
-      isHost: boolean;
-      isReady: boolean;
-      joinedAt: number;
-    }> = [];
-
-    this.sessions.forEach((session, _ws) => {
-      if (session.room === room) {
-        users.push({
-          username: session.username,
-          userId: session.userId,
-          userImage: session.userImage,
-          isHost: session.isHost,
-          isReady: session.isReady,
-          joinedAt: session.joinedAt,
-        });
-      }
-    });
-
-    return users;
-  }
-
-  private broadcastToRoom(room: string, message: any): void {
-    const roomUsers = Array.from(this.sessions.entries()).filter(
-      ([_ws, session]) => session.room === room
-    );
-
-    const messageWithStats = {
-      ...message,
-      connections: roomUsers.length,
-      totalConnections: this.sessions.size,
-    };
-
-    const messageString = JSON.stringify(messageWithStats);
-
-    roomUsers.forEach(([socket, _session]) => {
-      try {
-        socket.send(messageString);
-      } catch (e) {
-        console.error("Failed to send message to socket:", e);
-        // Clean up dead connection
-        this.sessions.delete(socket);
-      }
-    });
+    await this.handleMessage(ws, parsedMessage);
   }
 
   async webSocketClose(
@@ -513,13 +81,331 @@ export class WebSocketHibernationServer extends DurableObject {
     _reason: string,
     _wasClean: boolean
   ): Promise<void> {
-    // Handle user leaving when connection closes
-    const session = this.sessions.get(ws);
+    const session = this.roomManager.getUserSession(ws);
     if (session) {
       await this.handleLeaveRoom(ws, session);
     }
-
-    // If the client closes the connection, the runtime will invoke the webSocketClose() handler.
     ws.close(code, "Durable Object is closing WebSocket");
+  }
+
+  // ============================================================================
+  // Message Router
+  // ============================================================================
+
+  private async handleMessage(
+    ws: WebSocket,
+    message: IncomingMessage
+  ): Promise<void> {
+    switch (message.type) {
+      case "join":
+        await this.handleJoinRoom(ws, message as JoinMessage);
+        break;
+      case "leave":
+        await this.handleLeave(ws);
+        break;
+      case "message":
+      case "chat_message":
+        await this.handleChatMessage(ws, message as ChatMessage);
+        break;
+      case "ready":
+        await this.handleReady(ws, message);
+        break;
+      case "update_settings":
+        await this.handleUpdateSettings(ws, message as UpdateSettingsMessage);
+        break;
+      case "update_playlist":
+        await this.handleUpdatePlaylist(ws, message as UpdatePlaylistMessage);
+        break;
+      case "start_game":
+        await this.handleStartGame(ws, message);
+        break;
+      default:
+        await this.handleChatMessage(ws, message as ChatMessage);
+    }
+  }
+
+  // ============================================================================
+  // Validation Helpers
+  // ============================================================================
+
+  private validateSession(ws: WebSocket): UserSession | null {
+    const session = this.roomManager.getUserSession(ws);
+    if (!session) {
+      sendToSocket(ws, MessageBuilders.error("You must join a room first"));
+      return null;
+    }
+    return session;
+  }
+
+  private validateHost(ws: WebSocket, session: UserSession): boolean {
+    if (!session.isHost) {
+      sendToSocket(ws, MessageBuilders.error("Only the host can perform this action"));
+      return false;
+    }
+    return true;
+  }
+
+  // ============================================================================
+  // Message Handlers
+  // ============================================================================
+
+  private async handleJoinRoom(
+    ws: WebSocket,
+    data: JoinMessage
+  ): Promise<void> {
+    const { username, room, userId, userImage } = data;
+
+    // Validate required fields
+    if (!username || !room || !userId) {
+      sendToSocket(
+        ws,
+        MessageBuilders.error("Missing required fields: username, room, or userId")
+      );
+      return;
+    }
+
+    // Check if user is already in this room
+    const existingWs = this.roomManager.findSessionByUserId(userId, room);
+    if (existingWs) {
+      sendToSocket(ws, MessageBuilders.error("You are already in this room"));
+      return;
+    }
+
+    // Check if this is the first player (becomes host)
+    const existingPlayers = this.roomManager.getUsersInRoom(room);
+    const isFirstPlayer = existingPlayers.length === 0;
+
+    // Create user session
+    const session: UserSession = {
+      username,
+      room,
+      userId,
+      userImage: userImage || null,
+      isHost: isFirstPlayer,
+      isReady: false,
+      joinedAt: Date.now(),
+    };
+
+    // Store session
+    this.roomManager.setUserSession(ws, session);
+    ws.serializeAttachment(session);
+
+    // Get all users in room (including the new one)
+    const roomUsers = this.roomManager.getUsersInRoom(room);
+
+    // Notify all users in the room about the new player
+    const joinMessage = MessageBuilders.userJoined(
+      username,
+      userId,
+      room,
+      isFirstPlayer,
+      roomUsers
+    );
+    broadcastToRoom(this.roomManager.getSessions(), room, joinMessage);
+
+    // Send appropriate room state
+    if (isFirstPlayer) {
+      // First player creates the room - send room_created
+      const roomCreatedMessage = MessageBuilders.roomCreated(
+        room,
+        this.roomManager.getRoomSettings(),
+        this.roomManager.getRoomPlaylist()
+      );
+      broadcastToRoom(this.roomManager.getSessions(), room, roomCreatedMessage);
+    } else {
+      // Existing player gets current room state
+      const roomStateMessage = MessageBuilders.roomState(
+        room,
+        this.roomManager.getRoomSettings(),
+        this.roomManager.getRoomPlaylist()
+      );
+      sendToSocket(ws, roomStateMessage);
+    }
+  }
+
+  private async handleLeave(ws: WebSocket): Promise<void> {
+    const session = this.roomManager.getUserSession(ws);
+    if (session) {
+      await this.handleLeaveRoom(ws, session);
+    }
+  }
+
+  private async handleLeaveRoom(ws: WebSocket, session: UserSession): Promise<void> {
+    const { username, room, userId, isHost } = session;
+
+    // Get remaining users before deletion
+    const sessions = this.roomManager.getSessions();
+    const remainingSessions = Array.from(sessions.entries())
+      .filter(([s, sess]) => s !== ws && sess.room === room)
+      .map(([, s]) => s);
+
+    // Remove user session
+    this.roomManager.removeUserSession(ws);
+
+    // Handle host transfer
+    if (isHost && remainingSessions.length > 0) {
+      const newHost = remainingSessions[0];
+      if (newHost) {
+        newHost.isHost = true;
+
+        // Update serialization for new host
+        const newHostWs = this.roomManager.findSessionByUserIdOnly(newHost.userId);
+        if (newHostWs) {
+          newHostWs.serializeAttachment(newHost);
+        }
+
+        // Broadcast host change
+        const hostChangedMessage = MessageBuilders.gameEvent(
+          "host_changed",
+          "crown",
+          `${newHost.username} is now the host`,
+          { newHostId: newHost.userId, newHostName: newHost.username }
+        );
+        broadcastToRoom(this.roomManager.getSessions(), room, hostChangedMessage);
+      }
+    }
+
+    // Get remaining users in the room
+    const roomUsers = this.roomManager.getUsersInRoom(room);
+
+    // Notify remaining users
+    const leaveMessage = MessageBuilders.userLeft(username, userId, room, roomUsers);
+    broadcastToRoom(this.roomManager.getSessions(), room, leaveMessage);
+  }
+
+  private async handleChatMessage(
+    ws: WebSocket,
+    data: ChatMessage
+  ): Promise<void> {
+    const session = this.validateSession(ws);
+    if (!session) return;
+
+    const message = MessageBuilders.chatMessage(
+      data.content,
+      session.username,
+      session.userId,
+      session.room
+    );
+
+    broadcastToRoom(this.roomManager.getSessions(), session.room, message);
+  }
+
+  private async handleReady(
+    ws: WebSocket,
+    _data: IncomingMessage
+  ): Promise<void> {
+    const session = this.validateSession(ws);
+    if (!session) return;
+
+    // Toggle ready state
+    session.isReady = !session.isReady;
+    this.roomManager.setUserSession(ws, session);
+    ws.serializeAttachment(session);
+
+    // Broadcast ready status
+    const eventType = session.isReady ? "player_ready" : "player_not_ready";
+    const icon = session.isReady ? "check-circle" : "x-circle";
+    const content = session.isReady
+      ? `${session.username} is ready`
+      : `${session.username} is no longer ready`;
+
+    const gameEventMessage = MessageBuilders.gameEvent(
+      eventType,
+      icon,
+      content,
+      { userId: session.userId, isReady: session.isReady }
+    );
+    broadcastToRoom(this.roomManager.getSessions(), session.room, gameEventMessage);
+
+    // Broadcast updated user list
+    const usersMessage = MessageBuilders.usersUpdated(
+      this.roomManager.getUsersInRoom(session.room)
+    );
+    broadcastToRoom(this.roomManager.getSessions(), session.room, usersMessage);
+  }
+
+  private async handleUpdateSettings(
+    ws: WebSocket,
+    data: UpdateSettingsMessage
+  ): Promise<void> {
+    const session = this.validateSession(ws);
+    if (!session) return;
+
+    if (!this.validateHost(ws, session)) return;
+
+    const { maxPlayers, rounds, timePerRound } = data.payload || {};
+    const updatedSettings = this.roomManager.updateSettings(
+      maxPlayers,
+      rounds,
+      timePerRound
+    );
+
+    // Broadcast settings update
+    const settingsMessage = MessageBuilders.settingsUpdated(updatedSettings);
+    broadcastToRoom(this.roomManager.getSessions(), session.room, settingsMessage);
+
+    // Broadcast as game event
+    const gameEventMessage = MessageBuilders.gameEvent(
+      "settings_changed",
+      "settings",
+      `Game settings updated: ${updatedSettings.rounds} rounds, ${updatedSettings.timePerRound / 1000}s per round`,
+      { settings: updatedSettings }
+    );
+    broadcastToRoom(this.roomManager.getSessions(), session.room, gameEventMessage);
+  }
+
+  private async handleUpdatePlaylist(
+    ws: WebSocket,
+    data: UpdatePlaylistMessage
+  ): Promise<void> {
+    const session = this.validateSession(ws);
+    if (!session) return;
+
+    if (!this.validateHost(ws, session)) return;
+
+    const { playlist } = data.payload || {};
+    if (!playlist) return;
+
+    this.roomManager.setRoomPlaylist(playlist);
+
+    // Broadcast playlist update
+    const playlistMessage = MessageBuilders.playlistUpdated(playlist);
+    broadcastToRoom(this.roomManager.getSessions(), session.room, playlistMessage);
+
+    // Broadcast as game event
+    const gameEventMessage = MessageBuilders.gameEvent(
+      "playlist_changed",
+      "music",
+      `Playlist changed to: ${playlist.name}`,
+      { playlist }
+    );
+    broadcastToRoom(this.roomManager.getSessions(), session.room, gameEventMessage);
+  }
+
+  private async handleStartGame(
+    ws: WebSocket,
+    _data: IncomingMessage
+  ): Promise<void> {
+    const session = this.validateSession(ws);
+    if (!session) return;
+
+    if (!this.validateHost(ws, session)) return;
+
+    const roomUsers = this.roomManager.getUsersInRoom(session.room);
+
+    // Check minimum players
+    if (roomUsers.length < 1) {
+      sendToSocket(ws, MessageBuilders.error("Need at least 1 player to start"));
+      return;
+    }
+
+    const settings = this.roomManager.getRoomSettings();
+    const gameEventMessage = MessageBuilders.gameEvent(
+      "game_started",
+      "play",
+      `${session.username} started the game! ${settings.rounds} rounds ahead.`,
+      { settings, playerCount: roomUsers.length }
+    );
+    broadcastToRoom(this.roomManager.getSessions(), session.room, gameEventMessage);
   }
 }
