@@ -2,7 +2,25 @@
 	"extends": "./tsconfig.node.json",
 	"compilerOptions": {
 		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
-		"types": ["vite/client", "./worker-configuration.d.ts"]
+		"types": ["vite/client", "./worker-configuration.d.ts"],
+		
+		/* Strict Type Checking */
+		"strict": true,
+		"noImplicitAny": true,
+		"strictNullChecks": true,
+		"strictFunctionTypes": true,
+		"strictBindCallApply": true,
+		"strictPropertyInitialization": true,
+		"noImplicitThis": true,
+		"useUnknownInCatchVariables": true,
+		
+		/* Additional Checks */
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitReturns": true,
+		"noPropertyAccessFromIndexSignature": true
 	},
-	"include": ["src/worker"]
+	"include": ["src/worker", "src/shared"]
 }

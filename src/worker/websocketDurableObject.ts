@@ -63,7 +63,12 @@ export class WebSocketHibernationServer extends DurableObject {
   async fetch(_request: Request): Promise<Response> {
     // Creates two ends of a WebSocket connection.
     const webSocketPair = new WebSocketPair();
-    const [client, server] = Object.values(webSocketPair);
+    const client = webSocketPair[0] as WebSocket;
+    const server = webSocketPair[1] as WebSocket;
+
+    if (!client || !server) {
+      return new Response("WebSocket creation failed", { status: 500 });
+    }
 
     // Calling `acceptWebSocket()` informs the runtime that this WebSocket is to begin terminating
     // request within the Durable Object. It has the effect of "accepting" the connection,
@@ -235,24 +240,26 @@ export class WebSocketHibernationServer extends DurableObject {
     if (isHost && remainingUsers.length > 0) {
       // Transfer host to first remaining player
       const newHost = remainingUsers[0];
-      newHost.isHost = true;
+      if (newHost) {
+        newHost.isHost = true;
 
-      // Find the WebSocket for the new host and update attachment
-      for (const [_socket, sess] of this.sessions.entries()) {
-        if (sess.userId === newHost.userId) {
-          _socket.serializeAttachment(sess);
-          break;
+        // Find the WebSocket for the new host and update attachment
+        for (const [_socket, sess] of this.sessions.entries()) {
+          if (sess.userId === newHost.userId) {
+            _socket.serializeAttachment(sess);
+            break;
+          }
         }
-      }
 
-      // Broadcast host change
-      this.broadcastGameEvent(
-        room,
-        "host_changed",
-        "crown",
-        `${newHost.username} is now the host`,
-        { newHostId: newHost.userId, newHostName: newHost.username }
-      );
+        // Broadcast host change
+        this.broadcastGameEvent(
+          room,
+          "host_changed",
+          "crown",
+          `${newHost.username} is now the host`,
+          { newHostId: newHost.userId, newHostName: newHost.username }
+        );
+      }
     }
 
     // Get remaining users in the room

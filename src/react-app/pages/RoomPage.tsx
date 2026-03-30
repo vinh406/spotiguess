@@ -40,8 +40,9 @@ export default function RoomPage() {
 
     // If user is authenticated, use their auth info
     if (isAuthenticated && user) {
+      const displayName = user.name.trim();
       setCurrentUser({
-        username: user.name || user.email.split("@")[0],
+        username: displayName,
         userId: user.id,
       });
       setShowUsernamePrompt(false);
@@ -50,7 +51,7 @@ export default function RoomPage() {
       setPlayers([
         {
           userId: user.id,
-          username: user.name || user.email.split("@")[0],
+          username: displayName,
           userImage: user.image || undefined,
           isReady: false,
           isHost: true,
