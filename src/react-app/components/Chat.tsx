@@ -40,6 +40,50 @@ interface ChatProps {
 
 const MAX_MESSAGES = 200;
 
+function ChatBubbleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+      />
+    </svg>
+  );
+}
+
+type BadgeVariant = "green" | "red" | "yellow";
+
+const badgeVariantClasses: Record<BadgeVariant, string> = {
+  green: "bg-green-500/20 text-green-400",
+  red: "bg-red-500/20 text-red-400",
+  yellow: "bg-yellow-500/20 text-yellow-400",
+};
+
+function NotificationBadge({
+  variant,
+  children,
+}: {
+  variant: BadgeVariant;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="text-center py-2">
+      <div
+        className={`inline-block px-3 py-1 rounded-full text-xs ${badgeVariantClasses[variant]}`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function Chat({ username, room, userId, userImage, onUsersUpdate, onSettingsUpdate, onPlaylistUpdate, readyTrigger, settingsTrigger, playlistTrigger }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -158,54 +202,52 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
         const message: Message = JSON.parse(event.data);
         console.log('[Chat] Received message:', message.type, message);
 
-        // Handle different message types
-        if (message.type === "user_joined" || message.type === "user_left" || message.type === "users_updated") {
-          const newUsers = message.users || [];
-          console.log('[Chat] Users updated:', newUsers);
-          setUsers(newUsers);
-          // Notify parent component about user updates
-          if (onUsersUpdate) {
-            onUsersUpdate(newUsers);
+        switch (message.type) {
+          case "user_joined":
+          case "user_left":
+          case "users_updated": {
+            const newUsers = message.users || [];
+            console.log('[Chat] Users updated:', newUsers);
+            setUsers(newUsers);
+            if (onUsersUpdate) {
+              onUsersUpdate(newUsers);
+            }
+            break;
           }
-        }
 
-        // Handle settings updates
-        if (message.type === "settings_updated" && message.settings) {
-          console.log('[Chat] Settings updated received:', message.settings);
-          if (onSettingsUpdate) {
-            onSettingsUpdate(message.settings);
-          }
-        }
+          case "settings_updated":
+            if (message.settings) {
+              console.log('[Chat] Settings updated received:', message.settings);
+              onSettingsUpdate?.(message.settings);
+            }
+            break;
 
-        // Handle playlist updates
-        if (message.type === "playlist_updated" && message.playlist) {
-          console.log('[Chat] Playlist updated received:', message.playlist);
-          if (onPlaylistUpdate) {
-            onPlaylistUpdate(message.playlist);
-          }
-        }
+          case "playlist_updated":
+            if (message.playlist) {
+              console.log('[Chat] Playlist updated received:', message.playlist);
+              onPlaylistUpdate?.(message.playlist);
+            }
+            break;
 
-        // Handle game events
-        if (message.type === "game_event" && message.payload) {
-          // Game events are added to messages for display in chat
-          console.log("Game event received:", message.payload);
-        }
+          case "game_event":
+            if (message.payload) {
+              console.log("Game event received:", message.payload);
+            }
+            break;
 
-        // Handle room state (new player joins, receive current state)
-        if (message.type === "room_state" && message.settings) {
-          console.log('[Chat] Room state received:', message);
-          if (onSettingsUpdate) {
-            onSettingsUpdate(message.settings);
-          }
-          if (message.playlist && onPlaylistUpdate) {
-            onPlaylistUpdate(message.playlist);
-          }
-        }
+          case "room_state":
+            if (message.settings) {
+              console.log('[Chat] Room state received:', message);
+              onSettingsUpdate?.(message.settings);
+              if (message.playlist) {
+                onPlaylistUpdate?.(message.playlist);
+              }
+            }
+            break;
 
-        // Handle error messages
-        if (message.type === "error") {
-          console.error("Server error:", message.message);
-          // You could show a toast notification here
+          case "error":
+            console.error("Server error:", message.message);
+            break;
         }
 
         setMessages((prev) => {
@@ -293,31 +335,25 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
   const renderMessage = (message: Message, index: number) => {
     if (message.type === "user_joined") {
       return (
-        <div key={index} className="text-center py-2">
-          <div className="inline-block bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs">
-            {message.username} joined the room
-          </div>
-        </div>
+        <NotificationBadge key={index} variant="green">
+          {message.username} joined the room
+        </NotificationBadge>
       );
     }
 
     if (message.type === "user_left") {
       return (
-        <div key={index} className="text-center py-2">
-          <div className="inline-block bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-xs">
-            {message.username} left the room
-          </div>
-        </div>
+        <NotificationBadge key={index} variant="red">
+          {message.username} left the room
+        </NotificationBadge>
       );
     }
 
     if (message.type === "error") {
       return (
-        <div key={index} className="text-center py-2">
-          <div className="inline-block bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-xs">
-            {message.message}
-          </div>
-        </div>
+        <NotificationBadge key={index} variant="yellow">
+          {message.message}
+        </NotificationBadge>
       );
     }
 
@@ -365,19 +401,7 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
       <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
-            <svg
-              className="w-4 h-4 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              />
-            </svg>
+            <ChatBubbleIcon className="w-4 h-4 text-white" />
           </div>
           <div>
             <h3 className="text-sm font-semibold text-white">Room Chat</h3>
@@ -403,19 +427,7 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-12 h-12 bg-gray-700/30 rounded-full flex items-center justify-center mb-3">
-              <svg
-                className="w-6 h-6 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
-              </svg>
+              <ChatBubbleIcon className="w-6 h-6 text-gray-500" />
             </div>
             <p className="text-gray-500 text-sm">
               No messages yet. Start the conversation!

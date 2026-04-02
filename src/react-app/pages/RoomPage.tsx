@@ -7,10 +7,12 @@ import { PlaylistModal } from "../components/room/PlaylistModal";
 import { UsernamePrompt } from "../components/room/UsernamePrompt";
 import { useAuth } from "../contexts/AuthContext";
 import Header from "../components/Header";
+import LoadingSpinner from "../components/common/LoadingSpinner";
 
 export default function RoomPage() {
   const { user, isLoading } = useAuth();
   const { roomName } = useParams<{ roomName: string }>();
+  const effectiveRoomName = roomName || "general";
   const {
     currentUser,
     showUsernamePrompt,
@@ -49,7 +51,7 @@ export default function RoomPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+          <LoadingSpinner size="xl" className="text-green-500 mx-auto" />
           <p className="mt-4 text-gray-400">Loading...</p>
         </div>
       </div>
@@ -60,7 +62,7 @@ export default function RoomPage() {
   if (showUsernamePrompt || !currentUser) {
     return (
       <UsernamePrompt
-        roomName={roomName || "general"}
+        roomName={effectiveRoomName}
         onSubmit={handleJoinRoom}
         onBack={() => window.history.back()}
       />
@@ -73,7 +75,7 @@ export default function RoomPage() {
       <Header>
         <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-gray-800/50 rounded-xl border border-gray-700/50">
           <span className="text-gray-400 text-sm">Room:</span>
-          <span className="text-green-400 font-semibold">{roomName}</span>
+          <span className="text-green-400 font-semibold">{effectiveRoomName}</span>
         </div>
         <button
           onClick={handleLeaveRoom}
@@ -89,7 +91,7 @@ export default function RoomPage() {
           {/* Left Column - Room Lobby */}
           <div className="lg:col-span-2">
             <RoomLobby
-              roomName={roomName || "general"}
+              roomName={effectiveRoomName}
               players={players}
               selectedPlaylist={selectedPlaylist}
               gameSettings={gameSettings}
@@ -110,7 +112,7 @@ export default function RoomPage() {
             <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 overflow-hidden h-[calc(100vh-140px)]">
               <Chat
                 username={currentUser.username}
-                room={roomName || "general"}
+                room={effectiveRoomName}
                 userId={currentUser.userId}
                 userImage={user?.image || undefined}
                 readyTrigger={readyTrigger}

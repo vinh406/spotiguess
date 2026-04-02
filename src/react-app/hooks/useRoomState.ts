@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import type { Player, Playlist, UserSession } from "../../shared/types";
@@ -179,19 +179,28 @@ export function useRoomState(): RoomState & RoomActions {
   }, []);
 
   // Computed values
-  const isHost = players.find((p) => p.userId === currentUser?.userId)?.isHost;
-  const nonHostPlayers = players.filter((p) => !p.isHost);
-  const allNonHostPlayersReady = nonHostPlayers.length > 0 && nonHostPlayers.every((p) => p.isReady);
+  const isHost = useMemo(
+    () => players.find((p) => p.userId === currentUser?.userId)?.isHost,
+    [players, currentUser?.userId]
+  );
+
+  const { allNonHostPlayersReady, currentWarning } = useMemo(() => {
+    const nonHostPlayers = players.filter((p) => !p.isHost);
+    const allReady = nonHostPlayers.length > 0 && nonHostPlayers.every((p) => p.isReady);
+
+    let warning: string | null = null;
+    if (players.length < 2) {
+      warning = "Need at least 2 players to start";
+    } else if (!selectedPlaylist) {
+      warning = "Please select a playlist to start";
+    } else if (!allReady) {
+      warning = "Waiting for all players to be ready";
+    }
+
+    return { allNonHostPlayersReady: allReady, currentWarning: warning };
+  }, [players, selectedPlaylist]);
+
   const canStartGame = isHost && players.length >= 2 && selectedPlaylist && allNonHostPlayersReady;
-
-  const getCurrentWarning = useCallback(() => {
-    if (players.length < 2) return "Need at least 2 players to start";
-    if (!selectedPlaylist) return "Please select a playlist to start";
-    if (!allNonHostPlayersReady) return "Waiting for all players to be ready";
-    return null;
-  }, [players.length, selectedPlaylist, allNonHostPlayersReady]);
-
-  const currentWarning = getCurrentWarning();
 
   return {
     // State

@@ -1,5 +1,5 @@
 interface LoadingSpinnerProps {
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }
 
@@ -8,6 +8,7 @@ export default function LoadingSpinner({ size = "md", className = "" }: LoadingS
     sm: "h-4 w-4",
     md: "h-5 w-5",
     lg: "h-6 w-6",
+    xl: "h-12 w-12",
   };
 
   return (
