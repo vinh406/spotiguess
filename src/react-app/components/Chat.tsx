@@ -50,6 +50,7 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reconnectAttempts = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasOpen = useRef(false);
 
   const scrollToBottom = () => {
@@ -106,6 +107,11 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
   }, [playlistTrigger]);
 
   useEffect(() => {
+    // readyState: CONNECTING=0, OPEN=1, CLOSING=2, CLOSED=3
+    if (wsRef.current && wsRef.current.readyState < WebSocket.CLOSING) {
+      return;
+    }
+
     // Create WebSocket connection
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws/${encodeURIComponent(
@@ -116,7 +122,19 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
+    // Connection timeout — close stuck CONNECTING sockets
+    connectTimer.current = setTimeout(() => {
+      if (ws.readyState === WebSocket.CONNECTING) {
+        console.warn("WebSocket connection timed out");
+        ws.close();
+      }
+    }, 10000);
+
     ws.onopen = () => {
+      if (connectTimer.current) {
+        clearTimeout(connectTimer.current);
+        connectTimer.current = null;
+      }
       setIsConnected(true);
       reconnectAttempts.current = 0;
       wasOpen.current = true;
@@ -227,6 +245,10 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
 
     return () => {
       wasOpen.current = false;
+      if (connectTimer.current) {
+        clearTimeout(connectTimer.current);
+        connectTimer.current = null;
+      }
       if (reconnectTimer.current) {
         clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;

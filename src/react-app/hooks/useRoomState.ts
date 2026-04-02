@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import type { Player, Playlist, UserSession } from "../../shared/types";
@@ -61,9 +61,13 @@ export function useRoomState(): RoomState & RoomActions {
     timePerRound: DEFAULT_ROOM_SETTINGS.timePerRound / 1000,
   });
 
+  const initializedRef = useRef(false);
+
   // Initialize user from auth
   useEffect(() => {
     if (isLoading) return;
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
     if (isAuthenticated && user) {
       const displayName = user.name.trim();
