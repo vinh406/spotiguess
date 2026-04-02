@@ -212,6 +212,10 @@ export class WebSocketHibernationServer extends DurableObject {
         this.roomManager.getRoomPlaylist()
       );
       broadcastToRoom(this.roomManager.getSessions(), room, roomCreatedMessage);
+
+      // Also send the users list so the client knows their correct isHost status
+      const usersMessage = MessageBuilders.usersUpdated(roomUsers);
+      sendToSocket(ws, usersMessage);
     } else {
       // Existing player gets current room state
       const roomStateMessage = MessageBuilders.roomState(
@@ -220,6 +224,10 @@ export class WebSocketHibernationServer extends DurableObject {
         this.roomManager.getRoomPlaylist()
       );
       sendToSocket(ws, roomStateMessage);
+
+      // Also send the current users list so the client knows their correct isHost status
+      const usersMessage = MessageBuilders.usersUpdated(roomUsers);
+      sendToSocket(ws, usersMessage);
     }
   }
 
@@ -233,42 +241,39 @@ export class WebSocketHibernationServer extends DurableObject {
   private async handleLeaveRoom(ws: WebSocket, session: UserSession): Promise<void> {
     const { username, room, userId, isHost } = session;
 
-    // Get remaining users before deletion
+    // Get remaining users BEFORE deletion (need to find new host from these)
     const sessions = this.roomManager.getSessions();
-    const remainingSessions = Array.from(sessions.entries())
-      .filter(([s, sess]) => s !== ws && sess.room === room)
-      .map(([, s]) => s);
+    const remainingUserEntries = Array.from(sessions.entries())
+      .filter(([s, sess]) => s !== ws && sess.room === room);
 
-    // Remove user session
+    // Remove user session FIRST
     this.roomManager.removeUserSession(ws);
 
-    // Handle host transfer
-    if (isHost && remainingSessions.length > 0) {
-      const newHost = remainingSessions[0];
-      if (newHost) {
-        newHost.isHost = true;
+    // Handle host transfer - find the WebSocket of the first remaining user
+    if (isHost && remainingUserEntries.length > 0) {
+      const [newHostWs, newHostSession] = remainingUserEntries[0]!;
+      
+      // Update the session object in the Map with new host status
+      newHostSession.isHost = true;
+      this.roomManager.setUserSession(newHostWs, newHostSession);
 
-        // Update serialization for new host
-        const newHostWs = this.roomManager.findSessionByUserIdOnly(newHost.userId);
-        if (newHostWs) {
-          newHostWs.serializeAttachment(newHost);
-        }
+      // Update serialization for new host
+      newHostWs.serializeAttachment(newHostSession);
 
-        // Broadcast host change
-        const hostChangedMessage = MessageBuilders.gameEvent(
-          "host_changed",
-          "crown",
-          `${newHost.username} is now the host`,
-          { newHostId: newHost.userId, newHostName: newHost.username }
-        );
-        broadcastToRoom(this.roomManager.getSessions(), room, hostChangedMessage);
-      }
+      // Broadcast host change
+      const hostChangedMessage = MessageBuilders.gameEvent(
+        "host_changed",
+        "crown",
+        `${newHostSession.username} is now the host`,
+        { newHostId: newHostSession.userId, newHostName: newHostSession.username }
+      );
+      broadcastToRoom(this.roomManager.getSessions(), room, hostChangedMessage);
     }
 
-    // Get remaining users in the room
+    // Get remaining users in the room (after host transfer)
     const roomUsers = this.roomManager.getUsersInRoom(room);
 
-    // Notify remaining users
+    // Notify remaining users with updated user list
     const leaveMessage = MessageBuilders.userLeft(username, userId, room, roomUsers);
     broadcastToRoom(this.roomManager.getSessions(), room, leaveMessage);
   }
