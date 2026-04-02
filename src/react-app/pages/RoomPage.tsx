@@ -131,19 +131,10 @@ export default function RoomPage() {
           rounds={gameSettings.rounds}
           timePerRound={gameSettings.timePerRound}
           isHost={isHost ?? false}
-          onRoundsChange={(rounds) => {
-            if (isHost) {
-              const newSettings = { ...gameSettings, rounds };
-              setGameSettings(newSettings);
-              setSettingsTrigger({ rounds, timePerRound: newSettings.timePerRound });
-            }
-          }}
-          onTimePerRoundChange={(time) => {
-            if (isHost) {
-              const newSettings = { ...gameSettings, timePerRound: time };
-              setGameSettings(newSettings);
-              setSettingsTrigger({ rounds: newSettings.rounds, timePerRound: time });
-            }
+          onSave={(settings) => {
+            setGameSettings(settings);
+            setSettingsTrigger(settings);
+            setShowSettingsModal(false);
           }}
           onClose={() => setShowSettingsModal(false)}
         />

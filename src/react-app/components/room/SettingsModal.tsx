@@ -1,9 +1,10 @@
+import { useState } from "react";
+
 export interface SettingsModalProps {
   rounds: number;
   timePerRound: number;
   isHost: boolean;
-  onRoundsChange: (rounds: number) => void;
-  onTimePerRoundChange: (time: number) => void;
+  onSave: (settings: { rounds: number; timePerRound: number }) => void;
   onClose: () => void;
 }
 
@@ -14,10 +15,12 @@ export function SettingsModal({
   rounds,
   timePerRound,
   isHost,
-  onRoundsChange,
-  onTimePerRoundChange,
+  onSave,
   onClose,
 }: SettingsModalProps) {
+  const [localRounds, setLocalRounds] = useState(rounds);
+  const [localTimePerRound, setLocalTimePerRound] = useState(timePerRound);
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700/50 shadow-xl">
@@ -52,10 +55,10 @@ export function SettingsModal({
               {ROUND_OPTIONS.map((r) => (
                 <button
                   key={r}
-                  onClick={() => isHost && onRoundsChange(r)}
+                  onClick={() => isHost && setLocalRounds(r)}
                   disabled={!isHost}
                   className={`py-3 rounded-xl font-medium transition-all ${
-                    rounds === r
+                    localRounds === r
                       ? "bg-green-500 text-white"
                       : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600"
                   } ${!isHost ? "opacity-50 cursor-not-allowed" : ""}`}
@@ -74,10 +77,10 @@ export function SettingsModal({
               {TIME_PER_ROUND_OPTIONS.map((time) => (
                 <button
                   key={time}
-                  onClick={() => isHost && onTimePerRoundChange(time)}
+                  onClick={() => isHost && setLocalTimePerRound(time)}
                   disabled={!isHost}
                   className={`py-3 rounded-xl font-medium transition-all ${
-                    timePerRound === time
+                    localTimePerRound === time
                       ? "bg-green-500 text-white"
                       : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600"
                   } ${!isHost ? "opacity-50 cursor-not-allowed" : ""}`}
@@ -97,10 +100,10 @@ export function SettingsModal({
 
         <div className="p-6 border-t border-gray-700/50">
           <button
-            onClick={onClose}
+            onClick={() => onSave({ rounds: localRounds, timePerRound: localTimePerRound })}
             className="w-full py-3 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-xl hover:from-green-500 hover:to-green-700 transition-all font-semibold"
           >
-            Done
+            Save
           </button>
         </div>
       </div>
