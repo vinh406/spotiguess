@@ -6,7 +6,6 @@ import type {
   UserJoinedMessage,
   UserLeftMessage,
   UsersUpdatedMessage,
-  RoomCreatedMessage,
   RoomStateMessage,
   SettingsUpdatedMessage,
   PlaylistUpdatedMessage,
@@ -61,20 +60,6 @@ export const MessageBuilders = {
     return {
       type: "users_updated",
       users,
-      timestamp: Date.now(),
-    };
-  },
-
-  roomCreated(
-    room: string,
-    settings: RoomSettings,
-    playlist: Playlist | null
-  ): RoomCreatedMessage {
-    return {
-      type: "room_created",
-      room,
-      settings,
-      playlist,
       timestamp: Date.now(),
     };
   },

@@ -8,6 +8,7 @@ import type {
   UpdatePlaylistMessage,
 } from "../shared/types";
 import { MessageBuilders, broadcastToRoom, sendToSocket } from "./lib/websocket";
+import { MAX_USERNAME_LENGTH, MAX_CHAT_MESSAGE_LENGTH, ROOM_CODE_REGEX } from "../shared/constants";
 import { RoomManager } from "./lib/websocket/roomManager";
 
 // Durable Object that manages WebSocket connections and room state for a single game instance
@@ -164,6 +165,23 @@ export class WebSocketHibernationServer extends DurableObject {
       return;
     }
 
+    // Validate room code format
+    if (!ROOM_CODE_REGEX.test(room)) {
+      sendToSocket(ws, MessageBuilders.error("Invalid room code format"));
+      return;
+    }
+
+    // Sanitize and validate username
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      sendToSocket(ws, MessageBuilders.error("Username cannot be empty"));
+      return;
+    }
+    if (trimmedUsername.length > MAX_USERNAME_LENGTH) {
+      sendToSocket(ws, MessageBuilders.error(`Username must be ${MAX_USERNAME_LENGTH} characters or less`));
+      return;
+    }
+
     // Check if user is already in this room
     const existingWs = this.roomManager.findSessionByUserId(userId, room);
     if (existingWs) {
@@ -177,7 +195,7 @@ export class WebSocketHibernationServer extends DurableObject {
 
     // Create user session
     const session: UserSession = {
-      username,
+      username: trimmedUsername,
       room,
       userId,
       userImage: userImage || null,
@@ -195,7 +213,7 @@ export class WebSocketHibernationServer extends DurableObject {
 
     // Notify all users in the room about the new player
     const joinMessage = MessageBuilders.userJoined(
-      username,
+      trimmedUsername,
       userId,
       room,
       isFirstPlayer,
@@ -203,32 +221,13 @@ export class WebSocketHibernationServer extends DurableObject {
     );
     broadcastToRoom(this.roomManager.getSessions(), room, joinMessage);
 
-    // Send appropriate room state
-    if (isFirstPlayer) {
-      // First player creates the room - send room_created
-      const roomCreatedMessage = MessageBuilders.roomCreated(
-        room,
-        this.roomManager.getRoomSettings(),
-        this.roomManager.getRoomPlaylist()
-      );
-      broadcastToRoom(this.roomManager.getSessions(), room, roomCreatedMessage);
-
-      // Also send the users list so the client knows their correct isHost status
-      const usersMessage = MessageBuilders.usersUpdated(roomUsers);
-      sendToSocket(ws, usersMessage);
-    } else {
-      // Existing player gets current room state
-      const roomStateMessage = MessageBuilders.roomState(
-        room,
-        this.roomManager.getRoomSettings(),
-        this.roomManager.getRoomPlaylist()
-      );
-      sendToSocket(ws, roomStateMessage);
-
-      // Also send the current users list so the client knows their correct isHost status
-      const usersMessage = MessageBuilders.usersUpdated(roomUsers);
-      sendToSocket(ws, usersMessage);
-    }
+    // Send room state to joining player
+    const roomStateMessage = MessageBuilders.roomState(
+      room,
+      this.roomManager.getRoomSettings(),
+      this.roomManager.getRoomPlaylist()
+    );
+    sendToSocket(ws, roomStateMessage);
   }
 
   private async handleLeave(ws: WebSocket): Promise<void> {
@@ -285,8 +284,15 @@ export class WebSocketHibernationServer extends DurableObject {
     const session = this.validateSession(ws);
     if (!session) return;
 
+    const trimmedContent = data.content?.trim() || "";
+    if (!trimmedContent) return; // Ignore empty messages
+    if (trimmedContent.length > MAX_CHAT_MESSAGE_LENGTH) {
+      sendToSocket(ws, MessageBuilders.error(`Message must be ${MAX_CHAT_MESSAGE_LENGTH} characters or less`));
+      return;
+    }
+
     const message = MessageBuilders.chatMessage(
-      data.content,
+      trimmedContent,
       session.username,
       session.userId,
       session.room
@@ -307,22 +313,7 @@ export class WebSocketHibernationServer extends DurableObject {
     this.roomManager.setUserSession(ws, session);
     ws.serializeAttachment(session);
 
-    // Broadcast ready status
-    const eventType = session.isReady ? "player_ready" : "player_not_ready";
-    const icon = session.isReady ? "check-circle" : "x-circle";
-    const content = session.isReady
-      ? `${session.username} is ready`
-      : `${session.username} is no longer ready`;
-
-    const gameEventMessage = MessageBuilders.gameEvent(
-      eventType,
-      icon,
-      content,
-      { userId: session.userId, isReady: session.isReady }
-    );
-    broadcastToRoom(this.roomManager.getSessions(), session.room, gameEventMessage);
-
-    // Broadcast updated user list
+    // Broadcast updated user list (includes ready state)
     const usersMessage = MessageBuilders.usersUpdated(
       this.roomManager.getUsersInRoom(session.room)
     );
@@ -338,9 +329,8 @@ export class WebSocketHibernationServer extends DurableObject {
 
     if (!this.validateHost(ws, session)) return;
 
-    const { maxPlayers, rounds, timePerRound } = data.payload || {};
+    const { rounds, timePerRound } = data.payload || {};
     const updatedSettings = this.roomManager.updateSettings(
-      maxPlayers,
       rounds,
       timePerRound
     );
@@ -348,15 +338,6 @@ export class WebSocketHibernationServer extends DurableObject {
     // Broadcast settings update
     const settingsMessage = MessageBuilders.settingsUpdated(updatedSettings);
     broadcastToRoom(this.roomManager.getSessions(), session.room, settingsMessage);
-
-    // Broadcast as game event
-    const gameEventMessage = MessageBuilders.gameEvent(
-      "settings_changed",
-      "settings",
-      `Game settings updated: ${updatedSettings.rounds} rounds, ${updatedSettings.timePerRound / 1000}s per round`,
-      { settings: updatedSettings }
-    );
-    broadcastToRoom(this.roomManager.getSessions(), session.room, gameEventMessage);
   }
 
   private async handleUpdatePlaylist(
@@ -376,15 +357,6 @@ export class WebSocketHibernationServer extends DurableObject {
     // Broadcast playlist update
     const playlistMessage = MessageBuilders.playlistUpdated(playlist);
     broadcastToRoom(this.roomManager.getSessions(), session.room, playlistMessage);
-
-    // Broadcast as game event
-    const gameEventMessage = MessageBuilders.gameEvent(
-      "playlist_changed",
-      "music",
-      `Playlist changed to: ${playlist.name}`,
-      { playlist }
-    );
-    broadcastToRoom(this.roomManager.getSessions(), session.room, gameEventMessage);
   }
 
   private async handleStartGame(
@@ -399,8 +371,8 @@ export class WebSocketHibernationServer extends DurableObject {
     const roomUsers = this.roomManager.getUsersInRoom(session.room);
 
     // Check minimum players
-    if (roomUsers.length < 1) {
-      sendToSocket(ws, MessageBuilders.error("Need at least 1 player to start"));
+    if (roomUsers.length < 2) {
+      sendToSocket(ws, MessageBuilders.error("Need at least 2 players to start"));
       return;
     }
 

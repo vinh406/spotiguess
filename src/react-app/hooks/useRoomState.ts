@@ -30,13 +30,14 @@ export interface RoomActions {
   handleSelectPlaylist: (playlist: Playlist) => void;
   handleSpotifyLinkSubmit: () => void;
   handleCreateBlend: () => void;
-  handleSettingsUpdate: (settings: { maxPlayers: number; rounds: number; timePerRound: number }) => void;
+  handleSettingsUpdate: (settings: { rounds: number; timePerRound: number }) => void;
   handlePlaylistUpdate: (playlist: { id: string; name: string; description?: string; trackCount: number; imageUrl?: string }) => void;
   handleUsersUpdate: (users: UserSession[]) => Player[];
   setShowSettingsModal: (show: boolean) => void;
   setShowPlaylistModal: (show: boolean) => void;
   setSpotifyLink: (link: string) => void;
   setGameSettings: React.Dispatch<React.SetStateAction<{ rounds: number; timePerRound: number }>>;
+  setSettingsTrigger: (trigger: { rounds: number; timePerRound: number } | null) => void;
 }
 
 export function useRoomState(): RoomState & RoomActions {
@@ -72,7 +73,7 @@ export function useRoomState(): RoomState & RoomActions {
       setPlayers([{
         userId: user.id,
         username: displayName,
-        userImage: user.image || undefined,
+        userImage: user.image || null,
         isReady: false,
         isHost: false,
       }]);
@@ -82,7 +83,7 @@ export function useRoomState(): RoomState & RoomActions {
         const userId = `user-${Math.random().toString(36).substr(2, 9)}`;
         setCurrentUser({ username: storedUsername, userId });
         // Don't set isHost here - wait for server response
-        setPlayers([{ userId, username: storedUsername, isReady: false, isHost: false }]);
+        setPlayers([{ userId, username: storedUsername, userImage: null, isReady: false, isHost: false }]);
       } else {
         setShowUsernamePrompt(true);
       }
@@ -95,7 +96,7 @@ export function useRoomState(): RoomState & RoomActions {
     setCurrentUser({ username, userId });
     setShowUsernamePrompt(false);
     // Don't set isHost here - wait for server response
-    setPlayers([{ userId, username, isReady: false, isHost: false }]);
+    setPlayers([{ userId, username, userImage: null, isReady: false, isHost: false }]);
 
     if (roomName !== username) {
       navigate(`/room/${encodeURIComponent(roomName || "general")}`);
@@ -113,7 +114,7 @@ export function useRoomState(): RoomState & RoomActions {
     setReadyTrigger((prev) => prev + 1);
   }, []);
 
-  const handleSettingsUpdate = useCallback((settings: { maxPlayers: number; rounds: number; timePerRound: number }) => {
+  const handleSettingsUpdate = useCallback((settings: { rounds: number; timePerRound: number }) => {
     console.log('[RoomPage] Received settings update from server:', settings);
     setGameSettings({
       rounds: settings.rounds,
@@ -165,7 +166,7 @@ export function useRoomState(): RoomState & RoomActions {
     const newPlayers = users.map((u) => ({
       userId: u.userId,
       username: u.username,
-      userImage: u.userImage || undefined,
+      userImage: u.userImage,
       isReady: u.isReady,
       isHost: u.isHost,
     }));
@@ -219,6 +220,8 @@ export function useRoomState(): RoomState & RoomActions {
     setShowSettingsModal,
     setShowPlaylistModal,
     setSpotifyLink,
+
     setGameSettings,
+    setSettingsTrigger,
   };
 }

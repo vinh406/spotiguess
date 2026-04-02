@@ -10,8 +10,6 @@ interface Message {
   timestamp: number;
   content?: string;
   message?: string;
-  connections?: number;
-  totalConnections?: number;
   userId?: string;
   username?: string;
   room?: string;
@@ -40,13 +38,19 @@ interface ChatProps {
   playlistTrigger?: Playlist | null; // Trigger playlist update to server
 }
 
+const MAX_MESSAGES = 200;
+
 export function Chat({ username, room, userId, userImage, onUsersUpdate, onSettingsUpdate, onPlaylistUpdate, readyTrigger, settingsTrigger, playlistTrigger }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [users, setUsers] = useState<UserSession[]>([]);
+  const [reconnectKey, setReconnectKey] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const reconnectAttempts = useRef(0);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wasOpen = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -108,11 +112,14 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
       room
     )}`;
 
+    wasOpen.current = false;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
       setIsConnected(true);
+      reconnectAttempts.current = 0;
+      wasOpen.current = true;
       console.log("WebSocket connected");
 
       // Send join message
@@ -166,17 +173,6 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
           console.log("Game event received:", message.payload);
         }
 
-        // Handle room created (first player joins)
-        if (message.type === "room_created" && message.settings) {
-          console.log('[Chat] Room created with settings:', message.settings);
-          if (onSettingsUpdate) {
-            onSettingsUpdate(message.settings);
-          }
-          if (message.playlist && onPlaylistUpdate) {
-            onPlaylistUpdate(message.playlist);
-          }
-        }
-
         // Handle room state (new player joins, receive current state)
         if (message.type === "room_state" && message.settings) {
           console.log('[Chat] Room state received:', message);
@@ -194,7 +190,10 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
           // You could show a toast notification here
         }
 
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => {
+          const next = [...prev, message];
+          return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
+        });
       } catch (e) {
         console.error("Failed to parse message:", e);
       }
@@ -203,6 +202,22 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
     ws.onclose = () => {
       setIsConnected(false);
       console.log("WebSocket disconnected");
+
+      // Only reconnect if the connection was previously open (lost connection),
+      // not if it was already closing or never opened.
+      if (wasOpen.current) {
+        const maxAttempts = 5;
+        if (reconnectAttempts.current < maxAttempts) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
+          reconnectAttempts.current += 1;
+          console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current}/${maxAttempts})`);
+          reconnectTimer.current = setTimeout(() => {
+            setReconnectKey((k) => k + 1);
+          }, delay);
+        } else {
+          console.error("Max reconnection attempts reached");
+        }
+      }
     };
 
     ws.onerror = (error) => {
@@ -211,21 +226,14 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
     };
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        // Send leave message before closing
-        ws.send(
-          JSON.stringify({
-            type: "leave",
-            username,
-            room,
-            userId,
-            timestamp: Date.now(),
-          })
-        );
+      wasOpen.current = false;
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
       }
       ws.close();
     };
-  }, [username, room, userId]);
+  }, [username, room, userId, reconnectKey]);
 
   const sendMessage = () => {
     if (
@@ -246,7 +254,7 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
     setInputMessage("");
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -404,7 +412,7 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             disabled={!isConnected}
             className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"

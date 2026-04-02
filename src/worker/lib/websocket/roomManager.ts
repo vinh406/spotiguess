@@ -94,16 +94,9 @@ export class RoomManager {
   }
 
   updateSettings(
-    maxPlayers?: number,
     rounds?: number,
     timePerRound?: number
   ): RoomSettings {
-    if (maxPlayers !== undefined) {
-      this.roomSettings.maxPlayers = Math.max(
-        SETTINGS_LIMITS.maxPlayers.min,
-        Math.min(SETTINGS_LIMITS.maxPlayers.max, maxPlayers)
-      );
-    }
     if (rounds !== undefined) {
       this.roomSettings.rounds = Math.max(
         SETTINGS_LIMITS.rounds.min,

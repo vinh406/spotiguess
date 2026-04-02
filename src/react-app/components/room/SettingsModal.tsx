@@ -1,5 +1,3 @@
-import type { Playlist } from "../../../shared/types";
-
 export interface SettingsModalProps {
   rounds: number;
   timePerRound: number;

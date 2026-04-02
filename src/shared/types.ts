@@ -7,7 +7,7 @@
 export interface Player {
   userId: string;
   username: string;
-  userImage?: string;
+  userImage: string | null;
   isReady: boolean;
   isHost: boolean;
 }
@@ -27,7 +27,6 @@ export interface UserSession {
 // ============================================================================
 
 export interface RoomSettings {
-  maxPlayers: number;
   rounds: number;
   timePerRound: number;
 }
@@ -112,7 +111,6 @@ export interface ReadyMessage extends BaseMessage {
 export interface UpdateSettingsMessage extends BaseMessage {
   type: 'update_settings';
   payload: {
-    maxPlayers?: number;
     rounds?: number;
     timePerRound?: number;
   };
@@ -127,6 +125,11 @@ export interface UpdatePlaylistMessage extends BaseMessage {
 
 export interface StartGameMessage extends BaseMessage {
   type: 'start_game';
+}
+
+export interface AnswerMessage extends BaseMessage {
+  type: 'answer';
+  choiceIndex: number;
 }
 
 export type IncomingMessage =
@@ -237,11 +240,6 @@ export interface GameEndedMessage extends BaseMessage {
   finalScores: PlayerScore[];
 }
 
-export interface AnswerMessage extends BaseMessage {
-  type: 'answer';
-  choiceIndex: number;
-}
-
 export interface AnswerResultMessage extends BaseMessage {
   type: 'answer_result';
   isCorrect: boolean;
@@ -273,3 +271,11 @@ export type OutgoingMessage =
   | LeaderboardUpdateMessage;
 
 export type WebSocketMessage = IncomingMessage | OutgoingMessage;
+
+/**
+ * OutgoingMessage with room connection stats added by broadcastToRoom.
+ */
+export type BroadcastMessage = OutgoingMessage & {
+  connections: number;
+  totalConnections: number;
+};

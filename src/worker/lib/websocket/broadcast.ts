@@ -1,4 +1,4 @@
-import type { OutgoingMessage, UserSession } from "../../../shared/types";
+import type { OutgoingMessage, BroadcastMessage, UserSession } from "../../../shared/types";
 
 /**
  * Broadcasts a message to all WebSocket connections in a specific room
@@ -12,13 +12,13 @@ export function broadcastToRoom(
     ([, session]) => session.room === room
   );
 
-  const messageWithStats = {
+  const broadcastMessage: BroadcastMessage = {
     ...message,
     connections: roomUsers.length,
     totalConnections: sessions.size,
   };
 
-  const messageString = JSON.stringify(messageWithStats);
+  const messageString = JSON.stringify(broadcastMessage);
 
   roomUsers.forEach(([socket]) => {
     try {

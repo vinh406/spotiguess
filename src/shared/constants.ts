@@ -7,7 +7,6 @@ import type { Playlist, RoomSettings } from './types';
 // ============================================================================
 
 export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
-  maxPlayers: 8,
   rounds: 10,
   timePerRound: 20000, // 20 seconds in milliseconds
 };
@@ -17,7 +16,6 @@ export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
 // ============================================================================
 
 export const SETTINGS_LIMITS = {
-  maxPlayers: { min: 2, max: 20 },
   rounds: { min: 1, max: 50 },
   timePerRound: { min: 5000, max: 120000 }, // 5-120 seconds in milliseconds
 } as const;
@@ -98,3 +96,24 @@ export const TIME_PER_ROUND_OPTIONS = [10, 15, 20, 25, 30] as const;
 
 export const ROOM_CODE_LENGTH = 8;
 export const ROOM_CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+/**
+ * Generates a cryptographically random room code.
+ * Uses crypto.getRandomValues for uniform distribution.
+ * 8 chars from 36-char alphabet = 36^8 ≈ 2.8 trillion combinations,
+ * making collisions negligible in practice.
+ */
+export function generateRoomCode(): string {
+  const bytes = new Uint8Array(ROOM_CODE_LENGTH);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => ROOM_CODE_CHARS[b % ROOM_CODE_CHARS.length]).join('');
+}
+
+
+// ============================================================================
+// Input Validation
+// ============================================================================
+
+export const MAX_USERNAME_LENGTH = 20;
+export const MAX_CHAT_MESSAGE_LENGTH = 500;
+export const ROOM_CODE_REGEX = /^[A-Z0-9]+$/;

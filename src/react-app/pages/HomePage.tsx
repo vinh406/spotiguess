@@ -4,28 +4,18 @@ import { useAuth } from "../contexts/AuthContext";
 import Header from "../components/Header";
 import ActionCard from "../components/common/ActionCard";
 import StatCard from "../components/common/StatCard";
+import { generateRoomCode } from "../../shared/constants";
 
 export default function HomePage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
 
-  const handleCreateRoom = async () => {
-    setIsCreating(true);
-    try {
-      // Generate a random room code
-      const roomCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-      // Store username in session storage
-      sessionStorage.setItem("chat-username", user?.name || "Player");
-      // Navigate to the room
-      navigate(`/room/${roomCode}`);
-    } catch (error) {
-      console.error("Failed to create room:", error);
-    } finally {
-      setIsCreating(false);
-    }
+  const handleCreateRoom = () => {
+    const code = generateRoomCode();
+    sessionStorage.setItem("chat-username", user?.name || "Player");
+    navigate(`/room/${code}`);
   };
 
   const handleJoinRoom = async () => {
@@ -110,7 +100,6 @@ export default function HomePage() {
             borderColor="border-green-500/50"
             buttonText="Create Room"
             onClick={handleCreateRoom}
-            isLoading={isCreating}
           />
 
           {/* Join Room Card */}

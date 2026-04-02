@@ -41,6 +41,7 @@ export default function RoomPage() {
     setShowPlaylistModal,
     setSpotifyLink,
     setGameSettings,
+    setSettingsTrigger,
   } = useRoomState();
 
   // Show loading state while auth is loading
@@ -132,12 +133,16 @@ export default function RoomPage() {
           isHost={isHost ?? false}
           onRoundsChange={(rounds) => {
             if (isHost) {
-              setGameSettings((prev) => ({ ...prev, rounds }));
+              const newSettings = { ...gameSettings, rounds };
+              setGameSettings(newSettings);
+              setSettingsTrigger({ rounds, timePerRound: newSettings.timePerRound });
             }
           }}
           onTimePerRoundChange={(time) => {
             if (isHost) {
-              setGameSettings((prev) => ({ ...prev, timePerRound: time }));
+              const newSettings = { ...gameSettings, timePerRound: time };
+              setGameSettings(newSettings);
+              setSettingsTrigger({ rounds: newSettings.rounds, timePerRound: time });
             }
           }}
           onClose={() => setShowSettingsModal(false)}

@@ -49,6 +49,7 @@ export function UsernamePrompt({ roomName, onSubmit, onBack }: UsernamePromptPro
               id="username"
               name="username"
               placeholder="Enter your username..."
+              maxLength={20}
               className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all"
               required
               autoFocus
