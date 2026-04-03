@@ -153,7 +153,7 @@ export class RoomManager {
 
   initGame(songs: Song[]): void {
     this.gamePhase = 'playing';
-    this.songs = songs;
+    this.songs = this.shuffleArray(songs);
     this.totalRounds = songs.length;
     this.currentRound = 1;
     this.currentSongIndex = 0;
@@ -305,7 +305,7 @@ export class RoomManager {
 
   generateChoices(correctSong: Song, allSongs: Song[]): SongChoice[] {
     const wrongSongs = allSongs.filter(s => s.id !== correctSong.id);
-    const shuffled = wrongSongs.sort(() => Math.random() - 0.5);
+    const shuffled = this.shuffleArray(wrongSongs);
     const decoys = shuffled.slice(0, 3);
 
     const choices: SongChoice[] = [
@@ -325,9 +325,18 @@ export class RoomManager {
       })),
     ];
 
-    return choices.sort(() => Math.random() - 0.5).map((choice, i) => ({
+    return this.shuffleArray(choices).map((choice, i) => ({
       ...choice,
       index: i,
     }));
+  }
+
+  private shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array] as (T | undefined)[];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i]!, shuffled[j]!] = [shuffled[j]!, shuffled[i]!];
+    }
+    return shuffled as T[];
   }
 }
