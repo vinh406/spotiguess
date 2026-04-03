@@ -257,6 +257,45 @@ export class RoomManager {
     return Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
   }
 
+  getScoreForUser(userId: string): PlayerScore | undefined {
+    return this.scores.get(userId);
+  }
+
+  getCurrentRoundState(): {
+    round: number;
+    totalRounds: number;
+    song: Song;
+    choices: SongChoice[];
+    roundStartTime: number;
+    answers: Map<string, { choiceIndex: number; answeredAt: number }>;
+  } | null {
+    const song = this.songs[this.currentSongIndex];
+    if (this.gamePhase !== 'playing' || !song) {
+      return null;
+    }
+
+    return {
+      round: this.currentRound,
+      totalRounds: this.totalRounds,
+      song,
+      choices: this.choices,
+      roundStartTime: this.roundStartTime,
+      answers: this.answers,
+    };
+  }
+
+  addPlayerToScores(userId: string, username: string, userImage?: string): void {
+    if (!this.scores.has(userId)) {
+      this.scores.set(userId, {
+        userId,
+        username,
+        userImage,
+        score: 0,
+        streak: 0,
+      });
+    }
+  }
+
   generateChoices(correctSong: Song, allSongs: Song[]): SongChoice[] {
     const wrongSongs = allSongs.filter(s => s.id !== correctSong.id);
     const shuffled = wrongSongs.sort(() => Math.random() - 0.5);

@@ -73,6 +73,10 @@ export default function RoomPage() {
     setMyScore,
     setMyStreak,
     setScores,
+    setHasAnswered,
+    setSelectedChoice,
+    setCurrentRound,
+    setTotalRounds,
   } = useRoomState();
 
   const isGameActive = gamePhase === 'playing' || gamePhase === 'roundEnd' || gamePhase === 'gameEnd';
@@ -252,6 +256,39 @@ export default function RoomPage() {
               }}
               onLeaderboardUpdate={(leaderboard) => {
                 setScores(leaderboard);
+              }}
+              onGameStateReceived={(gameState) => {
+                setGamePhase(gameState.gamePhase);
+                
+                if (gameState.gamePhase === 'playing') {
+                  setRoundData(
+                    gameState.currentRound,
+                    gameState.totalRounds,
+                    gameState.currentSong,
+                    gameState.choices,
+                    gameState.roundStartTime
+                  );
+                  setScores(gameState.scores);
+                  setMyScore(gameState.myScore);
+                  setMyStreak(gameState.myStreak);
+                  
+                  if (gameState.hasAnswered) {
+                    setHasAnswered(true);
+                    setSelectedChoice(gameState.selectedChoice);
+                  }
+                } else if (gameState.gamePhase === 'roundEnd') {
+                  setCurrentRound(gameState.currentRound);
+                  setTotalRounds(gameState.totalRounds);
+                  setScores(gameState.scores);
+                  setMyScore(gameState.myScore);
+                  setMyStreak(gameState.myStreak);
+                } else if (gameState.gamePhase === 'gameEnd') {
+                  setCurrentRound(gameState.currentRound);
+                  setTotalRounds(gameState.totalRounds);
+                  setScores(gameState.scores);
+                  setMyScore(gameState.myScore);
+                  setMyStreak(gameState.myStreak);
+                }
               }}
             />
           </div>

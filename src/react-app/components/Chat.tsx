@@ -54,6 +54,7 @@ interface ChatProps {
   onGameEnded?: (finalScores: PlayerScore[]) => void;
   onAnswerResult?: (isCorrect: boolean, points: number, streak: number) => void;
   onLeaderboardUpdate?: (leaderboard: PlayerScore[]) => void;
+  onGameStateReceived?: (gameState: any) => void;
   readyTrigger?: number;
   settingsTrigger?: { rounds: number; timePerRound: number } | null;
   playlistTrigger?: Playlist | null;
@@ -107,7 +108,7 @@ function NotificationBadge({
   );
 }
 
-export function Chat({ username, room, userId, userImage, onUsersUpdate, onSettingsUpdate, onPlaylistUpdate, onGameStarted, onRoundStarted, onRoundEnded, onGameEnded, onAnswerResult, onLeaderboardUpdate, readyTrigger, settingsTrigger, playlistTrigger, startGameTrigger, answerTrigger }: ChatProps) {
+export function Chat({ username, room, userId, userImage, onUsersUpdate, onSettingsUpdate, onPlaylistUpdate, onGameStarted, onRoundStarted, onRoundEnded, onGameEnded, onAnswerResult, onLeaderboardUpdate, onGameStateReceived, readyTrigger, settingsTrigger, playlistTrigger, startGameTrigger, answerTrigger }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -310,6 +311,13 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
           case "leaderboard_update":
             if (message.leaderboard) {
               onLeaderboardUpdate?.(message.leaderboard);
+            }
+            break;
+
+          case "game_state":
+            console.log('[Chat] Game state received:', message);
+            if (onGameStateReceived) {
+              onGameStateReceived(message);
             }
             break;
 

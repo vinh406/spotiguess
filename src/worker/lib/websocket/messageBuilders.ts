@@ -19,6 +19,7 @@ import type {
   LeaderboardUpdateMessage,
   SongChoice,
   PlayerScore,
+  GamePhase,
 } from "../../../shared/types";
 
 export const MessageBuilders = {
@@ -213,6 +214,36 @@ export const MessageBuilders = {
     return {
       type: "leaderboard_update",
       leaderboard,
+      timestamp: Date.now(),
+    };
+  },
+
+  gameState(
+    gamePhase: GamePhase,
+    currentRound: number,
+    totalRounds: number,
+    currentSong: { previewUrl?: string; albumImageUrl?: string },
+    choices: SongChoice[],
+    roundStartTime: number,
+    scores: PlayerScore[],
+    myScore: number,
+    myStreak: number,
+    hasAnswered: boolean,
+    selectedChoice: number | null
+  ): any {
+    return {
+      type: "game_state",
+      gamePhase,
+      currentRound,
+      totalRounds,
+      currentSong,
+      choices,
+      roundStartTime,
+      scores,
+      myScore,
+      myStreak,
+      hasAnswered,
+      selectedChoice,
       timestamp: Date.now(),
     };
   },

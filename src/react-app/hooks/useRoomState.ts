@@ -61,6 +61,10 @@ export interface RoomActions {
   setAnswerTrigger: React.Dispatch<React.SetStateAction<{ choiceIndex: number; timestamp: number } | null>>;
   setMyScore: React.Dispatch<React.SetStateAction<number>>;
   setMyStreak: React.Dispatch<React.SetStateAction<number>>;
+  setHasAnswered: React.Dispatch<React.SetStateAction<boolean>>;
+  setSelectedChoice: React.Dispatch<React.SetStateAction<number | null>>;
+  setCurrentRound: React.Dispatch<React.SetStateAction<number>>;
+  setTotalRounds: React.Dispatch<React.SetStateAction<number>>;
   handleAnswer: (choiceIndex: number) => void;
   handleRoundEnded: (round: number, correctAnswer: SongChoice, scores: PlayerScore[]) => void;
   handleGameEnded: (finalScores: PlayerScore[]) => void;
@@ -93,8 +97,12 @@ function getInitialAuthState(isLoading: boolean, isAuthenticated: boolean, user:
   }
 
   const storedUsername = sessionStorage.getItem("chat-username");
+  const storedUserId = sessionStorage.getItem("chat-userId");
   if (storedUsername) {
-    const userId = `user-${Math.random().toString(36).substr(2, 9)}`;
+    const userId = storedUserId || `user-${Math.random().toString(36).substr(2, 9)}`;
+    if (!storedUserId) {
+      sessionStorage.setItem("chat-userId", userId);
+    }
     return {
       currentUser: { username: storedUsername, userId },
       showUsernamePrompt: false,
@@ -145,7 +153,11 @@ export function useRoomState(): RoomState & RoomActions {
 
   const handleJoinRoom = useCallback((username: string) => {
     sessionStorage.setItem("chat-username", username);
-    const userId = `user-${Math.random().toString(36).substr(2, 9)}`;
+    let userId = sessionStorage.getItem("chat-userId");
+    if (!userId) {
+      userId = `user-${Math.random().toString(36).substr(2, 9)}`;
+      sessionStorage.setItem("chat-userId", userId);
+    }
     setCurrentUser({ username, userId });
     setShowUsernamePrompt(false);
     // Don't set isHost here - wait for server response
@@ -355,6 +367,10 @@ export function useRoomState(): RoomState & RoomActions {
     setAnswerTrigger,
     setMyScore,
     setMyStreak,
+    setHasAnswered,
+    setSelectedChoice,
+    setCurrentRound,
+    setTotalRounds,
     handleAnswer,
     handleRoundEnded,
     handleGameEnded,
