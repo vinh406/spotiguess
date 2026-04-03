@@ -6,10 +6,12 @@ import type {
   ChatMessage,
   UpdateSettingsMessage,
   UpdatePlaylistMessage,
+  AnswerMessage,
 } from "../shared/types";
 import { MessageBuilders, broadcastToRoom, sendToSocket } from "./lib/websocket";
-import { MAX_USERNAME_LENGTH, MAX_CHAT_MESSAGE_LENGTH, ROOM_CODE_REGEX } from "../shared/constants";
+import { MAX_USERNAME_LENGTH, MAX_CHAT_MESSAGE_LENGTH, ROOM_CODE_REGEX, SCORING } from "../shared/constants";
 import { RoomManager } from "./lib/websocket/roomManager";
+import { selectSongsForGame } from "../shared/mockSongs";
 
 // Durable Object that manages WebSocket connections and room state for a single game instance
 export class WebSocketHibernationServer extends DurableObject {
@@ -35,7 +37,7 @@ export class WebSocketHibernationServer extends DurableObject {
   // WebSocket Connection Handling
   // ============================================================================
 
-  async fetch(_request: Request): Promise<Response> {
+  async fetch(): Promise<Response> {
     const webSocketPair = new WebSocketPair();
     const client = webSocketPair[0] as WebSocket;
     const server = webSocketPair[1] as WebSocket;
@@ -79,14 +81,12 @@ export class WebSocketHibernationServer extends DurableObject {
   async webSocketClose(
     ws: WebSocket,
     code: number,
-    _reason: string,
-    _wasClean: boolean
+    reason: string,
   ): Promise<void> {
     const session = this.roomManager.getUserSession(ws);
     if (session) {
       await this.handleLeaveRoom(ws, session);
     }
-    ws.close(code, "Durable Object is closing WebSocket");
   }
 
   // ============================================================================
@@ -109,7 +109,7 @@ export class WebSocketHibernationServer extends DurableObject {
         await this.handleChatMessage(ws, message as ChatMessage);
         break;
       case "ready":
-        await this.handleReady(ws, message);
+        await this.handleReady(ws);
         break;
       case "update_settings":
         await this.handleUpdateSettings(ws, message as UpdateSettingsMessage);
@@ -118,7 +118,10 @@ export class WebSocketHibernationServer extends DurableObject {
         await this.handleUpdatePlaylist(ws, message as UpdatePlaylistMessage);
         break;
       case "start_game":
-        await this.handleStartGame(ws, message);
+        await this.handleStartGame(ws);
+        break;
+      case "answer":
+        await this.handleAnswer(ws, message as AnswerMessage);
         break;
       default:
         await this.handleChatMessage(ws, message as ChatMessage);
@@ -303,7 +306,6 @@ export class WebSocketHibernationServer extends DurableObject {
 
   private async handleReady(
     ws: WebSocket,
-    _data: IncomingMessage
   ): Promise<void> {
     const session = this.validateSession(ws);
     if (!session) return;
@@ -361,7 +363,6 @@ export class WebSocketHibernationServer extends DurableObject {
 
   private async handleStartGame(
     ws: WebSocket,
-    _data: IncomingMessage
   ): Promise<void> {
     const session = this.validateSession(ws);
     if (!session) return;
@@ -370,19 +371,109 @@ export class WebSocketHibernationServer extends DurableObject {
 
     const roomUsers = this.roomManager.getUsersInRoom(session.room);
 
-    // Check minimum players
     if (roomUsers.length < 2) {
       sendToSocket(ws, MessageBuilders.error("Need at least 2 players to start"));
       return;
     }
 
     const settings = this.roomManager.getRoomSettings();
-    const gameEventMessage = MessageBuilders.gameEvent(
-      "game_started",
-      "play",
-      `${session.username} started the game! ${settings.rounds} rounds ahead.`,
-      { settings, playerCount: roomUsers.length }
+    const songs = selectSongsForGame(settings.rounds);
+    this.roomManager.initGame(songs);
+
+    const gameStartedMessage = MessageBuilders.gameStarted(settings.rounds, settings.timePerRound);
+    broadcastToRoom(this.roomManager.getSessions(), session.room, gameStartedMessage);
+
+    setTimeout(() => {
+      this.handleStartRoundInternal(session.room);
+    }, 2000);
+  }
+
+  private handleStartRoundInternal(room: string): void {
+    const roundData = this.roomManager.startRound();
+    const settings = this.roomManager.getRoomSettings();
+
+    const songData = {
+      previewUrl: roundData.song.previewUrl,
+      albumImageUrl: roundData.song.albumImageUrl,
+    };
+
+    const roundStartedMessage = MessageBuilders.roundStarted(
+      roundData.round,
+      roundData.totalRounds,
+      songData,
+      roundData.choices,
+      Date.now()
     );
-    broadcastToRoom(this.roomManager.getSessions(), session.room, gameEventMessage);
+    broadcastToRoom(this.roomManager.getSessions(), room, roundStartedMessage);
+
+    setTimeout(() => {
+      this.handleEndRoundInternal(room);
+    }, settings.timePerRound);
+  }
+
+  private handleEndRoundInternal(room: string): void {
+    const roundThatJustEnded = this.roomManager.getCurrentRound();
+    const { correctAnswer, scores } = this.roomManager.endRound();
+
+    const roundEndedMessage = MessageBuilders.roundEnded(
+      roundThatJustEnded,
+      correctAnswer,
+      scores
+    );
+    broadcastToRoom(this.roomManager.getSessions(), room, roundEndedMessage);
+
+    const leaderboardMessage = MessageBuilders.leaderboardUpdate(scores);
+    broadcastToRoom(this.roomManager.getSessions(), room, leaderboardMessage);
+
+    const settings = this.roomManager.getRoomSettings();
+    const totalRounds = settings.rounds;
+    const currentRound = this.roomManager.getCurrentRound();
+
+    if (currentRound < totalRounds) {
+      setTimeout(() => {
+        this.handleStartRoundInternal(room);
+      }, SCORING.ROUND_END_DELAY);
+    } else {
+      setTimeout(() => {
+        this.handleEndGameInternal(room);
+      }, SCORING.ROUND_END_DELAY);
+    }
+  }
+
+  private handleEndGameInternal(room: string): void {
+    const finalScores = this.roomManager.endGame();
+
+    const gameEndedMessage = MessageBuilders.gameEnded(finalScores);
+    broadcastToRoom(this.roomManager.getSessions(), room, gameEndedMessage);
+
+    setTimeout(() => {
+      this.roomManager.resetGame();
+      const usersMessage = MessageBuilders.usersUpdated(
+        this.roomManager.getUsersInRoom(room)
+      );
+      broadcastToRoom(this.roomManager.getSessions(), room, usersMessage);
+    }, SCORING.GAME_END_DELAY);
+  }
+
+  private async handleAnswer(
+    ws: WebSocket,
+    data: AnswerMessage
+  ): Promise<void> {
+    const session = this.validateSession(ws);
+    if (!session) return;
+
+    if (this.roomManager.getCurrentGamePhase() !== 'playing') {
+      sendToSocket(ws, MessageBuilders.error("Game is not currently playing"));
+      return;
+    }
+
+    const { isCorrect, points, streak } = this.roomManager.recordAnswer(session.userId, data.choiceIndex);
+
+    const answerResultMessage = MessageBuilders.answerResult(isCorrect, points, streak);
+    sendToSocket(ws, answerResultMessage);
+
+    const scores = this.roomManager.getScores();
+    const leaderboardMessage = MessageBuilders.leaderboardUpdate(scores);
+    broadcastToRoom(this.roomManager.getSessions(), session.room, leaderboardMessage);
   }
 }

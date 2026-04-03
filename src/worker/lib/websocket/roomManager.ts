@@ -1,13 +1,29 @@
-import type { UserSession, RoomSettings, Playlist } from "../../../shared/types";
-import { DEFAULT_ROOM_SETTINGS, SETTINGS_LIMITS } from "../../../shared/constants";
+import type { UserSession, RoomSettings, Playlist, Song, SongChoice, PlayerScore, GamePhase } from "../../../shared/types";
+import { DEFAULT_ROOM_SETTINGS, SETTINGS_LIMITS, SCORING } from "../../../shared/constants";
 
-/**
- * Manages room state including sessions, settings, and playlist
- */
+function calculateScore(isCorrect: boolean, timeTakenMs: number, timePerRoundMs: number, streak: number): number {
+  if (!isCorrect) return 0;
+  const speedRatio = 1 - (timeTakenMs / timePerRoundMs);
+  const speedBonus = Math.round(SCORING.MAX_SPEED_BONUS * Math.max(0, speedRatio));
+  const streakBonus = streak * SCORING.STREAK_BONUS;
+  return SCORING.BASE_POINTS + speedBonus + streakBonus;
+}
+
 export class RoomManager {
   private sessions: Map<WebSocket, UserSession>;
   private roomSettings: RoomSettings;
   private roomPlaylist: Playlist | null;
+
+  private gamePhase: GamePhase = 'lobby';
+  private currentRound: number = 0;
+  private totalRounds: number = 0;
+  private songs: Song[] = [];
+  private currentSongIndex: number = 0;
+  private choices: SongChoice[] = [];
+  private scores: Map<string, PlayerScore> = new Map();
+  private answers: Map<string, { choiceIndex: number; answeredAt: number }> = new Map();
+  private roundStartTime: number = 0;
+  private roundTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.sessions = new Map();
@@ -122,5 +138,150 @@ export class RoomManager {
 
   setRoomPlaylist(playlist: Playlist | null): void {
     this.roomPlaylist = playlist;
+  }
+
+  // --------------------------------------------------------------------------
+  // Game State Management
+  // --------------------------------------------------------------------------
+
+  initGame(songs: Song[]): void {
+    this.gamePhase = 'playing';
+    this.songs = songs;
+    this.totalRounds = songs.length;
+    this.currentRound = 1;
+    this.currentSongIndex = 0;
+    this.answers = new Map();
+
+    this.scores = new Map();
+    for (const [, session] of this.sessions.entries()) {
+      this.scores.set(session.userId, {
+        userId: session.userId,
+        username: session.username,
+        userImage: session.userImage ?? undefined,
+        score: 0,
+        streak: 0,
+      });
+    }
+  }
+
+  getCurrentGamePhase(): GamePhase {
+    return this.gamePhase;
+  }
+
+  getCurrentRound(): number {
+    return this.currentRound;
+  }
+
+  startRound(): { song: Song; choices: SongChoice[]; round: number; totalRounds: number } {
+    this.gamePhase = 'playing';
+    const song = this.songs[this.currentSongIndex]!;
+    const choices = this.generateChoices(song, this.songs);
+    this.choices = choices;
+    this.roundStartTime = Date.now();
+    this.answers = new Map();
+
+    return {
+      song,
+      choices,
+      round: this.currentRound,
+      totalRounds: this.totalRounds,
+    };
+  }
+
+  recordAnswer(userId: string, choiceIndex: number): { isCorrect: boolean; points: number; streak: number } {
+    if (this.answers.has(userId)) {
+      const existing = this.answers.get(userId)!;
+      const playerScore = this.scores.get(userId);
+      return {
+        isCorrect: this.choices[existing.choiceIndex]?.isCorrect ?? false,
+        points: playerScore?.score ?? 0,
+        streak: playerScore?.streak ?? 0,
+      };
+    }
+
+    const timeTaken = Date.now() - this.roundStartTime;
+    const isCorrect = this.choices[choiceIndex]?.isCorrect ?? false;
+    this.answers.set(userId, { choiceIndex, answeredAt: Date.now() });
+
+    const playerScore = this.scores.get(userId);
+    if (!playerScore) {
+      return { isCorrect, points: 0, streak: 0 };
+    }
+
+    const newStreak = isCorrect ? playerScore.streak + 1 : 0;
+    const points = calculateScore(isCorrect, timeTaken, this.roomSettings.timePerRound, newStreak);
+
+    playerScore.score += points;
+    playerScore.streak = newStreak;
+    this.scores.set(userId, playerScore);
+
+    return { isCorrect, points, streak: newStreak };
+  }
+
+  endRound(): { correctAnswer: SongChoice; scores: PlayerScore[] } {
+    this.gamePhase = 'roundEnd';
+
+    const correctAnswer = this.choices.find(c => c.isCorrect)!;
+    const scores = Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
+
+    if (this.currentSongIndex < this.songs.length - 1) {
+      this.currentSongIndex++;
+      this.currentRound++;
+    }
+
+    return { correctAnswer, scores };
+  }
+
+  endGame(): PlayerScore[] {
+    this.gamePhase = 'gameEnd';
+    return Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
+  }
+
+  resetGame(): void {
+    this.gamePhase = 'lobby';
+    this.currentRound = 0;
+    this.totalRounds = 0;
+    this.songs = [];
+    this.currentSongIndex = 0;
+    this.choices = [];
+    this.scores = new Map();
+    this.answers = new Map();
+    this.roundStartTime = 0;
+    if (this.roundTimer) {
+      clearTimeout(this.roundTimer);
+      this.roundTimer = null;
+    }
+  }
+
+  getScores(): PlayerScore[] {
+    return Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
+  }
+
+  generateChoices(correctSong: Song, allSongs: Song[]): SongChoice[] {
+    const wrongSongs = allSongs.filter(s => s.id !== correctSong.id);
+    const shuffled = wrongSongs.sort(() => Math.random() - 0.5);
+    const decoys = shuffled.slice(0, 3);
+
+    const choices: SongChoice[] = [
+      {
+        index: 0,
+        title: correctSong.title,
+        artist: correctSong.artist,
+        albumImageUrl: correctSong.albumImageUrl,
+        isCorrect: true,
+      },
+      ...decoys.map((song, i) => ({
+        index: i + 1,
+        title: song.title,
+        artist: song.artist,
+        albumImageUrl: song.albumImageUrl,
+        isCorrect: false,
+      })),
+    ];
+
+    return choices.sort(() => Math.random() - 0.5).map((choice, i) => ({
+      ...choice,
+      index: i,
+    }));
   }
 }

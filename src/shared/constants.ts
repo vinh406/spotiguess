@@ -117,3 +117,15 @@ export function generateRoomCode(): string {
 export const MAX_USERNAME_LENGTH = 20;
 export const MAX_CHAT_MESSAGE_LENGTH = 500;
 export const ROOM_CODE_REGEX = /^[A-Z0-9]+$/;
+
+// ============================================================================
+// Scoring Constants
+// ============================================================================
+
+export const SCORING = {
+  BASE_POINTS: 100,
+  MAX_SPEED_BONUS: 100,
+  STREAK_BONUS: 10,
+  ROUND_END_DELAY: 5000,
+  GAME_END_DELAY: 10000,
+} as const;

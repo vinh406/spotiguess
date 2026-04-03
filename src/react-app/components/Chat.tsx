@@ -3,6 +3,8 @@ import type {
   UserSession,
   RoomSettings,
   Playlist,
+  SongChoice,
+  PlayerScore,
 } from "../../shared/types";
 
 interface Message {
@@ -23,6 +25,19 @@ interface Message {
     content?: string;
     data?: Record<string, unknown>;
   };
+  totalRounds?: number;
+  timePerRound?: number;
+  round?: number;
+  song?: { previewUrl?: string; albumImageUrl?: string };
+  choices?: SongChoice[];
+  startTime?: number;
+  correctAnswer?: SongChoice;
+  scores?: PlayerScore[];
+  finalScores?: PlayerScore[];
+  isCorrect?: boolean;
+  points?: number;
+  streak?: number;
+  leaderboard?: PlayerScore[];
 }
 
 interface ChatProps {
@@ -33,9 +48,17 @@ interface ChatProps {
   onUsersUpdate?: (users: UserSession[]) => void;
   onSettingsUpdate?: (settings: RoomSettings) => void;
   onPlaylistUpdate?: (playlist: Playlist) => void;
-  readyTrigger?: number; // Increment to trigger ready toggle
-  settingsTrigger?: { rounds: number; timePerRound: number } | null; // Trigger settings update to server
-  playlistTrigger?: Playlist | null; // Trigger playlist update to server
+  onGameStarted?: (totalRounds: number, timePerRound: number) => void;
+  onRoundStarted?: (round: number, totalRounds: number, song: { previewUrl?: string; albumImageUrl?: string }, choices: SongChoice[], startTime: number) => void;
+  onRoundEnded?: (round: number, correctAnswer: SongChoice, scores: PlayerScore[]) => void;
+  onGameEnded?: (finalScores: PlayerScore[]) => void;
+  onAnswerResult?: (isCorrect: boolean, points: number, streak: number) => void;
+  onLeaderboardUpdate?: (leaderboard: PlayerScore[]) => void;
+  readyTrigger?: number;
+  settingsTrigger?: { rounds: number; timePerRound: number } | null;
+  playlistTrigger?: Playlist | null;
+  startGameTrigger?: number;
+  answerTrigger?: { choiceIndex: number; timestamp: number } | null;
 }
 
 const MAX_MESSAGES = 200;
@@ -84,7 +107,7 @@ function NotificationBadge({
   );
 }
 
-export function Chat({ username, room, userId, userImage, onUsersUpdate, onSettingsUpdate, onPlaylistUpdate, readyTrigger, settingsTrigger, playlistTrigger }: ChatProps) {
+export function Chat({ username, room, userId, userImage, onUsersUpdate, onSettingsUpdate, onPlaylistUpdate, onGameStarted, onRoundStarted, onRoundEnded, onGameEnded, onAnswerResult, onLeaderboardUpdate, readyTrigger, settingsTrigger, playlistTrigger, startGameTrigger, answerTrigger }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -96,14 +119,6 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasOpen = useRef(false);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   // Handle ready trigger from parent
   useEffect(() => {
@@ -149,6 +164,33 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
       );
     }
   }, [playlistTrigger]);
+
+  // Handle start game trigger from parent
+  useEffect(() => {
+    if (startGameTrigger && startGameTrigger > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[Chat] Sending start game to server');
+      wsRef.current.send(
+        JSON.stringify({
+          type: "start_game",
+          timestamp: Date.now(),
+        })
+      );
+    }
+  }, [startGameTrigger]);
+
+  // Handle answer trigger from parent (user selects a choice in game)
+  useEffect(() => {
+    if (answerTrigger && wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[Chat] Sending answer to server:', answerTrigger);
+      wsRef.current.send(
+        JSON.stringify({
+          type: "answer",
+          choiceIndex: answerTrigger.choiceIndex,
+          timestamp: answerTrigger.timestamp,
+        })
+      );
+    }
+  }, [answerTrigger]);
 
   useEffect(() => {
     // readyState: CONNECTING=0, OPEN=1, CLOSING=2, CLOSED=3
@@ -232,6 +274,42 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
           case "game_event":
             if (message.payload) {
               console.log("Game event received:", message.payload);
+            }
+            break;
+
+          case "game_started":
+            if (message.totalRounds !== undefined && message.timePerRound !== undefined) {
+              onGameStarted?.(message.totalRounds, message.timePerRound);
+            }
+            break;
+
+          case "round_started":
+            if (message.round && message.choices && message.song) {
+              onRoundStarted?.(message.round, message.totalRounds!, message.song, message.choices, message.startTime || Date.now());
+            }
+            break;
+
+          case "round_ended":
+            if (message.correctAnswer && message.scores) {
+              onRoundEnded?.(message.round!, message.correctAnswer, message.scores);
+            }
+            break;
+
+          case "game_ended":
+            if (message.finalScores) {
+              onGameEnded?.(message.finalScores);
+            }
+            break;
+
+          case "answer_result":
+            if (message.isCorrect !== undefined && message.points !== undefined && message.streak !== undefined) {
+              onAnswerResult?.(message.isCorrect, message.points, message.streak);
+            }
+            break;
+
+          case "leaderboard_update":
+            if (message.leaderboard) {
+              onLeaderboardUpdate?.(message.leaderboard);
             }
             break;
 

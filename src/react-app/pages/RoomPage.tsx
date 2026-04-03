@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams } from "react-router";
 import { useRoomState } from "../hooks/useRoomState";
 import { Chat } from "../components/Chat";
@@ -5,14 +6,18 @@ import { RoomLobby } from "../components/room/RoomLobby";
 import { SettingsModal } from "../components/room/SettingsModal";
 import { PlaylistModal } from "../components/room/PlaylistModal";
 import { UsernamePrompt } from "../components/room/UsernamePrompt";
+import { GameView } from "../components/game/GameView";
+import { RoundEndView } from "../components/game/RoundEndView";
+import { GameEndView } from "../components/game/GameEndView";
 import { useAuth } from "../contexts/AuthContext";
-import Header from "../components/Header";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 
 export default function RoomPage() {
   const { user, isLoading } = useAuth();
   const { roomName } = useParams<{ roomName: string }>();
   const effectiveRoomName = roomName || "general";
+  const [chatOpen, setChatOpen] = useState(true);
+
   const {
     currentUser,
     showUsernamePrompt,
@@ -29,6 +34,20 @@ export default function RoomPage() {
     isHost,
     canStartGame,
     currentWarning,
+    gamePhase,
+    currentRound,
+    totalRounds,
+    currentSong,
+    choices,
+    roundStartTime,
+    myScore,
+    myStreak,
+    hasAnswered,
+    selectedChoice,
+    answerTrigger,
+    startGameTrigger,
+    roundEndData,
+    gameEndData,
     handleJoinRoom,
     handleLeaveRoom,
     handleToggleReady,
@@ -44,12 +63,23 @@ export default function RoomPage() {
     setSpotifyLink,
     setGameSettings,
     setSettingsTrigger,
+    handleAnswer,
+    handleRoundEnded,
+    handleGameEnded,
+    handlePlayAgain,
+    resetToLobby,
+    setRoundData,
+    setGamePhase,
+    setMyScore,
+    setMyStreak,
+    setScores,
   } = useRoomState();
 
-  // Show loading state while auth is loading
+  const isGameActive = gamePhase === 'playing' || gamePhase === 'roundEnd' || gamePhase === 'gameEnd';
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+      <div className="h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
         <div className="text-center">
           <LoadingSpinner size="xl" className="text-green-500 mx-auto" />
           <p className="mt-4 text-gray-400">Loading...</p>
@@ -58,7 +88,6 @@ export default function RoomPage() {
     );
   }
 
-  // Show username prompt if no user is set
   if (showUsernamePrompt || !currentUser) {
     return (
       <UsernamePrompt
@@ -70,64 +99,166 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* Header */}
-      <Header>
-        <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-gray-800/50 rounded-xl border border-gray-700/50">
-          <span className="text-gray-400 text-sm">Room:</span>
-          <span className="text-green-400 font-semibold">{effectiveRoomName}</span>
-        </div>
-        <button
-          onClick={handleLeaveRoom}
-          className="px-4 py-2 bg-gray-700/50 text-gray-300 rounded-xl hover:bg-gray-600/50 transition-all border border-gray-600"
-        >
-          Leave Room
-        </button>
-      </Header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Room Lobby */}
-          <div className="lg:col-span-2">
-            <RoomLobby
-              roomName={effectiveRoomName}
-              players={players}
-              selectedPlaylist={selectedPlaylist}
-              gameSettings={gameSettings}
-              isHost={isHost ?? false}
-              isReady={isReady}
-              canStartGame={canStartGame ?? false}
-              currentWarning={currentWarning}
-              currentUser={currentUser}
-              onToggleReady={handleToggleReady}
-              onStartGame={handleStartGame}
-              onOpenSettings={() => setShowSettingsModal(true)}
-              onOpenPlaylist={() => setShowPlaylistModal(true)}
-            />
-          </div>
-
-          {/* Right Column - Chat */}
-          <div className="space-y-6">
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 overflow-hidden h-[calc(100vh-140px)]">
-              <Chat
-                username={currentUser.username}
-                room={effectiveRoomName}
-                userId={currentUser.userId}
-                userImage={user?.image || undefined}
-                readyTrigger={readyTrigger}
-                settingsTrigger={settingsTrigger}
-                playlistTrigger={playlistTrigger}
-                onSettingsUpdate={handleSettingsUpdate}
-                onPlaylistUpdate={handlePlaylistUpdate}
-                onUsersUpdate={handleUsersUpdate}
-              />
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      {/* Compact Header */}
+      <header className="shrink-0 border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-sm">
+        <div className="px-3 sm:px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+              </svg>
+            </div>
+            <span className="text-lg font-bold text-white hidden sm:inline">Spotiguess</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-800/50 rounded-lg border border-gray-700/50 ml-2">
+              <span className="text-gray-400 text-xs">Room:</span>
+              <span className="text-green-400 font-semibold text-sm">{effectiveRoomName}</span>
             </div>
           </div>
-        </div>
-      </main>
 
-      {/* Settings Modal */}
+          <div className="flex items-center gap-2">
+            {/* Chat toggle button */}
+            <button
+              onClick={() => setChatOpen(!chatOpen)}
+              className={`relative p-2 rounded-lg transition-all border ${
+                chatOpen
+                  ? "bg-green-500/20 border-green-500/30 text-green-400"
+                  : "bg-gray-800/50 border-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-700/50"
+              }`}
+              aria-label={chatOpen ? "Close chat" : "Open chat"}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              {!chatOpen && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              )}
+            </button>
+
+            <button
+              onClick={handleLeaveRoom}
+              className="px-3 py-1.5 bg-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-600/50 transition-all border border-gray-600 text-sm"
+            >
+              Leave
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        {/* Game/Lobby Area */}
+        <main className="flex-1 min-w-0 overflow-hidden">
+          {isGameActive ? (
+            /* Active Game - Full Width */
+            <div className="h-full">
+              {gamePhase === 'playing' && currentSong ? (
+                <GameView
+                  round={currentRound}
+                  totalRounds={totalRounds}
+                  song={currentSong}
+                  choices={choices}
+                  startTime={roundStartTime}
+                  timePerRound={gameSettings.timePerRound * 1000}
+                  hasAnswered={hasAnswered}
+                  selectedChoice={selectedChoice}
+                  myScore={myScore}
+                  myStreak={myStreak}
+                  onAnswer={handleAnswer}
+                />
+              ) : gamePhase === 'roundEnd' && roundEndData ? (
+                <RoundEndView
+                  round={currentRound}
+                  totalRounds={totalRounds}
+                  correctAnswer={roundEndData.correctAnswer}
+                  scores={roundEndData.scores}
+                  myUserId={currentUser.userId}
+                  onNextRound={() => {
+                    setGamePhase('roundEnd');
+                  }}
+                />
+              ) : gamePhase === 'gameEnd' && gameEndData ? (
+                <GameEndView
+                  finalScores={gameEndData.finalScores}
+                  myUserId={currentUser.userId}
+                  onPlayAgain={handlePlayAgain}
+                  onBackToLobby={resetToLobby}
+                />
+              ) : null}
+            </div>
+          ) : (
+            /* Lobby - With side padding */
+            <div className="h-full overflow-y-auto p-3 sm:p-4 lg:p-6">
+              <div className="max-w-3xl mx-auto">
+                <RoomLobby
+                  roomName={effectiveRoomName}
+                  players={players}
+                  selectedPlaylist={selectedPlaylist}
+                  gameSettings={gameSettings}
+                  isHost={isHost ?? false}
+                  isReady={isReady}
+                  canStartGame={canStartGame ?? false}
+                  currentWarning={currentWarning}
+                  currentUser={currentUser}
+                  onToggleReady={handleToggleReady}
+                  onStartGame={handleStartGame}
+                  onOpenSettings={() => setShowSettingsModal(true)}
+                  onOpenPlaylist={() => setShowPlaylistModal(true)}
+                />
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* Chat Sidebar */}
+        <aside
+          className={`shrink-0 border-l border-gray-700/50 bg-gray-900/50 backdrop-blur-sm transition-all duration-300 ease-in-out overflow-hidden ${
+            chatOpen ? "w-72 sm:w-80" : "w-0"
+          }`}
+        >
+          <div className="w-72 sm:w-80 h-full">
+            <Chat
+              username={currentUser.username}
+              room={effectiveRoomName}
+              userId={currentUser.userId}
+              userImage={user?.image || undefined}
+              readyTrigger={readyTrigger}
+              settingsTrigger={settingsTrigger}
+              playlistTrigger={playlistTrigger}
+              startGameTrigger={isHost ? startGameTrigger : undefined}
+              answerTrigger={answerTrigger}
+              onSettingsUpdate={handleSettingsUpdate}
+              onPlaylistUpdate={handlePlaylistUpdate}
+              onUsersUpdate={handleUsersUpdate}
+              onGameStarted={(totalRounds, timePerRound) => {
+                setGameSettings({ rounds: totalRounds, timePerRound: timePerRound / 1000 });
+              }}
+              onRoundStarted={(round, totalRounds, song, choices, startTime) => {
+                setGamePhase('playing');
+                setRoundData(round, totalRounds, song, choices, startTime);
+              }}
+              onRoundEnded={(round, correctAnswer, scores) => {
+                handleRoundEnded(round, correctAnswer, scores);
+              }}
+              onGameEnded={(finalScores) => {
+                handleGameEnded(finalScores);
+              }}
+              onAnswerResult={(isCorrect, points, streak) => {
+                if (isCorrect) {
+                  setMyScore(prev => prev + points);
+                }
+                setMyStreak(streak);
+              }}
+              onLeaderboardUpdate={(leaderboard) => {
+                setScores(leaderboard);
+              }}
+            />
+          </div>
+        </aside>
+      </div>
+
+      {/* Modals */}
       {showSettingsModal && (
         <SettingsModal
           rounds={gameSettings.rounds}
@@ -142,7 +273,6 @@ export default function RoomPage() {
         />
       )}
 
-      {/* Playlist Modal */}
       {showPlaylistModal && (
         <PlaylistModal
           selectedPlaylist={selectedPlaylist}

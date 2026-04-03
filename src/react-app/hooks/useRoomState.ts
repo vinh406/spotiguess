@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
-import type { Player, Playlist, UserSession } from "../../shared/types";
+import type { Player, Playlist, UserSession, SongChoice, PlayerScore, GamePhase } from "../../shared/types";
 import { DEFAULT_ROOM_SETTINGS } from "../../shared/constants";
 
 export interface RoomState {
@@ -20,6 +20,21 @@ export interface RoomState {
   isHost: boolean | undefined;
   canStartGame: boolean | null | undefined;
   currentWarning: string | null;
+  gamePhase: GamePhase;
+  currentRound: number;
+  totalRounds: number;
+  currentSong: { previewUrl?: string; albumImageUrl?: string } | null;
+  choices: SongChoice[];
+  roundStartTime: number;
+  scores: PlayerScore[];
+  myScore: number;
+  myStreak: number;
+  hasAnswered: boolean;
+  selectedChoice: number | null;
+  startGameTrigger: number;
+  answerTrigger: { choiceIndex: number; timestamp: number } | null;
+  roundEndData: { correctAnswer: SongChoice; scores: PlayerScore[] } | null;
+  gameEndData: { finalScores: PlayerScore[] } | null;
 }
 
 export interface RoomActions {
@@ -38,6 +53,56 @@ export interface RoomActions {
   setSpotifyLink: (link: string) => void;
   setGameSettings: React.Dispatch<React.SetStateAction<{ rounds: number; timePerRound: number }>>;
   setSettingsTrigger: (trigger: { rounds: number; timePerRound: number } | null) => void;
+  setGamePhase: (phase: GamePhase) => void;
+  setRoundData: (round: number, totalRounds: number, song: { previewUrl?: string; albumImageUrl?: string }, choices: SongChoice[], startTime: number) => void;
+  setScores: (scores: PlayerScore[]) => void;
+  resetToLobby: () => void;
+  setStartGameTrigger: React.Dispatch<React.SetStateAction<number>>;
+  setAnswerTrigger: React.Dispatch<React.SetStateAction<{ choiceIndex: number; timestamp: number } | null>>;
+  setMyScore: React.Dispatch<React.SetStateAction<number>>;
+  setMyStreak: React.Dispatch<React.SetStateAction<number>>;
+  handleAnswer: (choiceIndex: number) => void;
+  handleRoundEnded: (round: number, correctAnswer: SongChoice, scores: PlayerScore[]) => void;
+  handleGameEnded: (finalScores: PlayerScore[]) => void;
+  handlePlayAgain: () => void;
+}
+
+// Helper function to compute initial auth state based on auth and sessionStorage
+function getInitialAuthState(isLoading: boolean, isAuthenticated: boolean, user: { name?: string; id?: string; image?: string | null } | null): {
+  currentUser: { username: string; userId: string } | null;
+  showUsernamePrompt: boolean;
+  players: Player[];
+} {
+  if (isLoading) {
+    return { currentUser: null, showUsernamePrompt: false, players: [] };
+  }
+
+  if (isAuthenticated && user) {
+    const displayName = user.name?.trim() || "";
+    return {
+      currentUser: { username: displayName, userId: user.id || "" },
+      showUsernamePrompt: false,
+      players: [{
+        userId: user.id || "",
+        username: displayName,
+        userImage: user.image || null,
+        isReady: false,
+        isHost: false,
+      }],
+    };
+  }
+
+  const storedUsername = sessionStorage.getItem("chat-username");
+  if (storedUsername) {
+    const userId = `user-${Math.random().toString(36).substr(2, 9)}`;
+    return {
+      currentUser: { username: storedUsername, userId },
+      showUsernamePrompt: false,
+      players: [{ userId, username: storedUsername, userImage: null, isReady: false, isHost: false }],
+    };
+  }
+
+  return { currentUser: null, showUsernamePrompt: true, players: [] };
 }
 
 export function useRoomState(): RoomState & RoomActions {
@@ -45,9 +110,11 @@ export function useRoomState(): RoomState & RoomActions {
   const { roomName } = useParams<{ roomName: string }>();
   const { user, isAuthenticated, isLoading } = useAuth();
 
-  const [currentUser, setCurrentUser] = useState<{ username: string; userId: string } | null>(null);
-  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
-  const [players, setPlayers] = useState<Player[]>([]);
+  const initialAuthState = getInitialAuthState(isLoading, isAuthenticated, user);
+
+  const [currentUser, setCurrentUser] = useState<{ username: string; userId: string } | null>(initialAuthState.currentUser);
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(initialAuthState.showUsernamePrompt);
+  const [players, setPlayers] = useState<Player[]>(initialAuthState.players);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -60,39 +127,21 @@ export function useRoomState(): RoomState & RoomActions {
     rounds: DEFAULT_ROOM_SETTINGS.rounds,
     timePerRound: DEFAULT_ROOM_SETTINGS.timePerRound / 1000,
   });
-
-  const initializedRef = useRef(false);
-
-  // Initialize user from auth
-  useEffect(() => {
-    if (isLoading) return;
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
-    if (isAuthenticated && user) {
-      const displayName = user.name.trim();
-      setCurrentUser({ username: displayName, userId: user.id });
-      setShowUsernamePrompt(false);
-      // Don't set isHost here - wait for server response
-      setPlayers([{
-        userId: user.id,
-        username: displayName,
-        userImage: user.image || null,
-        isReady: false,
-        isHost: false,
-      }]);
-    } else {
-      const storedUsername = sessionStorage.getItem("chat-username");
-      if (storedUsername) {
-        const userId = `user-${Math.random().toString(36).substr(2, 9)}`;
-        setCurrentUser({ username: storedUsername, userId });
-        // Don't set isHost here - wait for server response
-        setPlayers([{ userId, username: storedUsername, userImage: null, isReady: false, isHost: false }]);
-      } else {
-        setShowUsernamePrompt(true);
-      }
-    }
-  }, [isLoading, isAuthenticated, user]);
+  const [gamePhase, setGamePhase] = useState<GamePhase>('lobby');
+  const [currentRound, setCurrentRound] = useState(0);
+  const [totalRounds, setTotalRounds] = useState(0);
+  const [currentSong, setCurrentSong] = useState<{ previewUrl?: string; albumImageUrl?: string } | null>(null);
+  const [choices, setChoices] = useState<SongChoice[]>([]);
+  const [roundStartTime, setRoundStartTime] = useState(0);
+  const [scores, setScores] = useState<PlayerScore[]>([]);
+  const [myScore, setMyScore] = useState(0);
+  const [myStreak, setMyStreak] = useState(0);
+  const [hasAnswered, setHasAnswered] = useState(false);
+  const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
+  const [startGameTrigger, setStartGameTrigger] = useState(0);
+  const [answerTrigger, setAnswerTrigger] = useState<{ choiceIndex: number; timestamp: number } | null>(null);
+  const [roundEndData, setRoundEndData] = useState<{ correctAnswer: SongChoice; scores: PlayerScore[] } | null>(null);
+  const [gameEndData, setGameEndData] = useState<{ finalScores: PlayerScore[] } | null>(null);
 
   const handleJoinRoom = useCallback((username: string) => {
     sessionStorage.setItem("chat-username", username);
@@ -138,13 +187,36 @@ export function useRoomState(): RoomState & RoomActions {
   }, []);
 
   const handleStartGame = useCallback(() => {
-    console.log("Starting game with settings:", {
-      playlist: selectedPlaylist,
-      rounds: gameSettings.rounds,
-      timePerRound: gameSettings.timePerRound,
-      players,
-    });
-  }, [selectedPlaylist, gameSettings, players]);
+    setStartGameTrigger(prev => prev + 1);
+  }, []);
+
+  const setRoundData = useCallback((round: number, totalRounds: number, song: { previewUrl?: string; albumImageUrl?: string }, choices: SongChoice[], startTime: number) => {
+    setCurrentRound(round);
+    setTotalRounds(totalRounds);
+    setCurrentSong(song);
+    setChoices(choices);
+    setRoundStartTime(startTime);
+    setHasAnswered(false);
+    setSelectedChoice(null);
+    setRoundEndData(null);
+    setGameEndData(null);
+  }, []);
+
+  const resetToLobby = useCallback(() => {
+    setGamePhase('lobby');
+    setCurrentRound(0);
+    setTotalRounds(0);
+    setCurrentSong(null);
+    setChoices([]);
+    setRoundStartTime(0);
+    setScores([]);
+    setMyScore(0);
+    setMyStreak(0);
+    setHasAnswered(false);
+    setSelectedChoice(null);
+    setRoundEndData(null);
+    setGameEndData(null);
+  }, []);
 
   const handleSelectPlaylist = useCallback((playlist: Playlist) => {
     setSelectedPlaylist(playlist);
@@ -176,6 +248,31 @@ export function useRoomState(): RoomState & RoomActions {
     }));
     setPlayers(newPlayers);
     return newPlayers;
+  }, []);
+
+  const handleAnswer = useCallback((choiceIndex: number) => {
+    if (hasAnswered) return;
+    setSelectedChoice(choiceIndex);
+    setHasAnswered(true);
+    setAnswerTrigger({ choiceIndex, timestamp: Date.now() });
+  }, [hasAnswered]);
+
+  const handleRoundEnded = useCallback((_round: number, correctAnswer: SongChoice, scores: PlayerScore[]) => {
+    setRoundEndData({ correctAnswer, scores });
+    setScores(scores);
+    setGamePhase('roundEnd');
+  }, []);
+
+  const handleGameEnded = useCallback((finalScores: PlayerScore[]) => {
+    setGameEndData({ finalScores });
+    setScores(finalScores);
+    setGamePhase('gameEnd');
+  }, []);
+
+  const handlePlayAgain = useCallback(() => {
+    setStartGameTrigger(prev => prev + 1);
+    // Don't set gamePhase here — wait for server's round_started message
+    // to drive the phase change via onRoundStarted callback
   }, []);
 
   // Computed values
@@ -219,6 +316,21 @@ export function useRoomState(): RoomState & RoomActions {
     isHost,
     canStartGame,
     currentWarning,
+    gamePhase,
+    currentRound,
+    totalRounds,
+    currentSong,
+    choices,
+    roundStartTime,
+    scores,
+    myScore,
+    myStreak,
+    hasAnswered,
+    selectedChoice,
+    startGameTrigger,
+    answerTrigger,
+    roundEndData,
+    gameEndData,
     // Actions
     handleJoinRoom,
     handleLeaveRoom,
@@ -233,8 +345,19 @@ export function useRoomState(): RoomState & RoomActions {
     setShowSettingsModal,
     setShowPlaylistModal,
     setSpotifyLink,
-
     setGameSettings,
     setSettingsTrigger,
+    setGamePhase,
+    setRoundData,
+    setScores,
+    resetToLobby,
+    setStartGameTrigger,
+    setAnswerTrigger,
+    setMyScore,
+    setMyStreak,
+    handleAnswer,
+    handleRoundEnded,
+    handleGameEnded,
+    handlePlayAgain,
   };
 }

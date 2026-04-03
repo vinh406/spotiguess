@@ -11,6 +11,14 @@ import type {
   PlaylistUpdatedMessage,
   GameEventMessage,
   ChatMessage,
+  GameStartedMessage,
+  RoundStartedMessage,
+  RoundEndedMessage,
+  GameEndedMessage,
+  AnswerResultMessage,
+  LeaderboardUpdateMessage,
+  SongChoice,
+  PlayerScore,
 } from "../../../shared/types";
 
 export const MessageBuilders = {
@@ -130,6 +138,81 @@ export const MessageBuilders = {
       username,
       userId,
       room,
+      timestamp: Date.now(),
+    };
+  },
+
+  gameStarted(totalRounds: number, timePerRound: number): GameStartedMessage {
+    return {
+      type: "game_started",
+      totalRounds,
+      timePerRound,
+      timestamp: Date.now(),
+    };
+  },
+
+  roundStarted(
+    round: number,
+    totalRounds: number,
+    song: { previewUrl?: string; albumImageUrl?: string },
+    choices: SongChoice[],
+    startTime: number
+  ): RoundStartedMessage {
+    return {
+      type: "round_started",
+      round,
+      totalRounds,
+      song: {
+        id: '',
+        title: '',
+        artist: '',
+        album: '',
+        previewUrl: song.previewUrl,
+        albumImageUrl: song.albumImageUrl,
+        duration: 0,
+      },
+      choices,
+      startTime,
+      timestamp: Date.now(),
+    };
+  },
+
+  roundEnded(
+    round: number,
+    correctAnswer: SongChoice,
+    scores: PlayerScore[]
+  ): RoundEndedMessage {
+    return {
+      type: "round_ended",
+      round,
+      correctAnswer,
+      scores,
+      timestamp: Date.now(),
+    };
+  },
+
+  gameEnded(finalScores: PlayerScore[]): GameEndedMessage {
+    return {
+      type: "game_ended",
+      finalScores,
+      timestamp: Date.now(),
+    };
+  },
+
+  answerResult(isCorrect: boolean, points: number, streak: number): AnswerResultMessage {
+    return {
+      type: "answer_result",
+      isCorrect,
+      points,
+      streak,
+      timestamp: Date.now(),
+    };
+  },
+
+  leaderboardUpdate(leaderboard: PlayerScore[]): LeaderboardUpdateMessage {
+    return {
+      type: "leaderboard_update",
+      leaderboard,
       timestamp: Date.now(),
     };
   },
