@@ -457,8 +457,8 @@ export class WebSocketHibernationServer extends DurableObject {
 
     const roomUsers = this.roomManager.getUsersInRoom(session.room);
 
-    if (roomUsers.length < 2) {
-      sendToSocket(ws, MessageBuilders.error("Need at least 2 players to start"));
+    if (roomUsers.length < 1) {
+      sendToSocket(ws, MessageBuilders.error("Need at least 1 player to start"));
       return;
     }
 

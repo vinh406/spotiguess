@@ -348,12 +348,11 @@ export function useRoomState(): RoomState & RoomActions {
 
   const { allNonHostPlayersReady, currentWarning } = useMemo(() => {
     const nonHostPlayers = players.filter((p) => !p.isHost);
-    const allReady = nonHostPlayers.length > 0 && nonHostPlayers.every((p) => p.isReady);
+    const hasNonHostPlayers = nonHostPlayers.length > 0;
+    const allReady = !hasNonHostPlayers || nonHostPlayers.every((p) => p.isReady);
 
     let warning: string | null = null;
-    if (players.length < 2) {
-      warning = "Need at least 2 players to start";
-    } else if (!selectedPlaylist) {
+    if (!selectedPlaylist) {
       warning = "Please select a playlist to start";
     } else if (!allReady) {
       warning = "Waiting for all players to be ready";
@@ -362,7 +361,7 @@ export function useRoomState(): RoomState & RoomActions {
     return { allNonHostPlayersReady: allReady, currentWarning: warning };
   }, [players, selectedPlaylist]);
 
-  const canStartGame = isHost && players.length >= 2 && selectedPlaylist && allNonHostPlayersReady;
+  const canStartGame = isHost && players.length >= 1 && selectedPlaylist && allNonHostPlayersReady;
 
   return {
     // State
