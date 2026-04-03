@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface CountdownTimerProps {
   endTime: number;
   timePerRound: number;
+  isPaused?: boolean;
   onTimeUp: () => void;
 }
 
-export function CountdownTimer({ endTime, timePerRound, onTimeUp }: CountdownTimerProps) {
+export function CountdownTimer({ endTime, timePerRound, isPaused = false, onTimeUp }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState(-1);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setTimeLeft(Math.max(0, endTime - Date.now()));
@@ -20,22 +22,23 @@ export function CountdownTimer({ endTime, timePerRound, onTimeUp }: CountdownTim
   }, [endTime, timeLeft]);
 
   useEffect(() => {
-    if (timeLeft <= 0) {
-      onTimeUp();
+    if (timeLeft <= 0 || isPaused) {
       return;
     }
 
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       const remaining = Math.max(0, endTime - Date.now());
       setTimeLeft(remaining);
       if (remaining <= 0) {
-        clearInterval(interval);
+        if (intervalRef.current) clearInterval(intervalRef.current);
         onTimeUp();
       }
     }, 100);
 
-    return () => clearInterval(interval);
-  }, [endTime, timeLeft, onTimeUp]);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [endTime, timeLeft, onTimeUp, isPaused]);
 
   const seconds = Math.ceil(timeLeft / 1000);
   const percentage = (timeLeft / timePerRound) * 100;
