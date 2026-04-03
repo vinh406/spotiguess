@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import type { Player, Playlist, UserSession, SongChoice, PlayerScore, GamePhase } from "../../shared/types";
@@ -35,6 +35,8 @@ export interface RoomState {
   answerTrigger: { choiceIndex: number; timestamp: number } | null;
   roundEndData: { correctAnswer: SongChoice; scores: PlayerScore[] } | null;
   gameEndData: { finalScores: PlayerScore[] } | null;
+  availablePlaylists: Playlist[];
+  playlistsLoading: boolean;
 }
 
 export interface RoomActions {
@@ -50,6 +52,7 @@ export interface RoomActions {
   handleUsersUpdate: (users: UserSession[]) => Player[];
   setShowSettingsModal: (show: boolean) => void;
   setShowPlaylistModal: (show: boolean) => void;
+  setShowPlaylistModalWithFetch: () => void;
   setSpotifyLink: (link: string) => void;
   setGameSettings: React.Dispatch<React.SetStateAction<{ rounds: number; timePerRound: number }>>;
   setSettingsTrigger: (trigger: { rounds: number; timePerRound: number } | null) => void;
@@ -131,6 +134,8 @@ export function useRoomState(): RoomState & RoomActions {
   const [readyTrigger, setReadyTrigger] = useState(0);
   const [settingsTrigger, setSettingsTrigger] = useState<{ rounds: number; timePerRound: number } | null>(null);
   const [playlistTrigger, setPlaylistTrigger] = useState<Playlist | null>(null);
+  const [availablePlaylists, setAvailablePlaylists] = useState<Playlist[]>([]);
+  const [playlistsLoading, setPlaylistsLoading] = useState(true);
   const [gameSettings, setGameSettings] = useState({
     rounds: DEFAULT_ROOM_SETTINGS.rounds,
     timePerRound: DEFAULT_ROOM_SETTINGS.timePerRound / 1000,
@@ -150,6 +155,26 @@ export function useRoomState(): RoomState & RoomActions {
   const [answerTrigger, setAnswerTrigger] = useState<{ choiceIndex: number; timestamp: number } | null>(null);
   const [roundEndData, setRoundEndData] = useState<{ correctAnswer: SongChoice; scores: PlayerScore[] } | null>(null);
   const [gameEndData, setGameEndData] = useState<{ finalScores: PlayerScore[] } | null>(null);
+  const fetchedPlaylistsRef = useRef(false);
+
+  const handleOpenPlaylistModal = useCallback(() => {
+    if (availablePlaylists.length === 0 && !fetchedPlaylistsRef.current) {
+      fetchedPlaylistsRef.current = true;
+      setPlaylistsLoading(true);
+      fetch("/api/playlists")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.playlists) {
+            setAvailablePlaylists(data.playlists);
+          }
+          setPlaylistsLoading(false);
+        })
+        .catch(() => {
+          setPlaylistsLoading(false);
+        });
+    }
+    setShowPlaylistModal(true);
+  }, [availablePlaylists.length, setShowPlaylistModal]);
 
   const handleJoinRoom = useCallback((username: string) => {
     sessionStorage.setItem("chat-username", username);
@@ -239,11 +264,39 @@ export function useRoomState(): RoomState & RoomActions {
     setShowPlaylistModal(false);
   }, [players, currentUser]);
 
-  const handleSpotifyLinkSubmit = useCallback(() => {
-    console.log("Spotify link submitted:", spotifyLink);
+  const handleSpotifyLinkSubmit = useCallback(async () => {
+    if (!spotifyLink.trim()) return;
+    
+    try {
+      const response = await fetch("/api/playlists/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ link: spotifyLink }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error("Failed to import playlist:", data.error);
+        return;
+      }
+      
+      if (data.playlist) {
+        setSelectedPlaylist(data.playlist);
+        const isHost = players.find((p) => p.userId === currentUser?.userId)?.isHost;
+        if (isHost) {
+          setPlaylistTrigger(data.playlist);
+        }
+      }
+    } catch (error) {
+      console.error("Error importing playlist:", error);
+    }
+    
     setSpotifyLink("");
     setShowPlaylistModal(false);
-  }, [spotifyLink]);
+  }, [spotifyLink, players, currentUser]);
 
   const handleCreateBlend = useCallback(() => {
     console.log("Creating blend from players");
@@ -343,6 +396,8 @@ export function useRoomState(): RoomState & RoomActions {
     answerTrigger,
     roundEndData,
     gameEndData,
+    availablePlaylists,
+    playlistsLoading,
     // Actions
     handleJoinRoom,
     handleLeaveRoom,
@@ -356,6 +411,7 @@ export function useRoomState(): RoomState & RoomActions {
     handleUsersUpdate,
     setShowSettingsModal,
     setShowPlaylistModal,
+    setShowPlaylistModalWithFetch: handleOpenPlaylistModal,
     setSpotifyLink,
     setGameSettings,
     setSettingsTrigger,

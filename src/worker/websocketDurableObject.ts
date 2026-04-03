@@ -10,16 +10,19 @@ import type {
 } from "../shared/types";
 import { MessageBuilders, broadcastToRoom, sendToSocket } from "./lib/websocket";
 import { MAX_USERNAME_LENGTH, MAX_CHAT_MESSAGE_LENGTH, ROOM_CODE_REGEX, SCORING } from "../shared/constants";
-import { RoomManager } from "./lib/websocket/roomManager";
+import { RoomManager } from "./lib/websocket";
 import { selectSongsForGame } from "../shared/mockSongs";
+import { getPlaylistTracks } from "./lib/spotify/playlists";
 
 // Durable Object that manages WebSocket connections and room state for a single game instance
 export class WebSocketHibernationServer extends DurableObject {
   private roomManager: RoomManager;
+  private spotifyEnv: Env;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
 
+    this.spotifyEnv = env;
     this.roomManager = new RoomManager();
 
     // Restore existing sessions from hibernated WebSocket connections
@@ -192,7 +195,7 @@ export class WebSocketHibernationServer extends DurableObject {
       this.roomManager.removeUserSession(existingWs);
       try {
         existingWs.close();
-      } catch (e) {
+      } catch {
         // Ignore close errors
       }
     }
@@ -438,7 +441,7 @@ export class WebSocketHibernationServer extends DurableObject {
     const { playlist } = data.payload || {};
     if (!playlist) return;
 
-    this.roomManager.setRoomPlaylist(playlist);
+    this.roomManager.setRoomPlaylist(playlist, session.userId);
 
     // Broadcast playlist update
     const playlistMessage = MessageBuilders.playlistUpdated(playlist);
@@ -461,8 +464,23 @@ export class WebSocketHibernationServer extends DurableObject {
     }
 
     const settings = this.roomManager.getRoomSettings();
-    const songs = selectSongsForGame(settings.rounds);
-    this.roomManager.initGame(songs);
+    const roomPlaylist = this.roomManager.getRoomPlaylist();
+    const playlistUserId = this.roomManager.getRoomPlaylistUserId();
+
+    let songs;
+    if (roomPlaylist?.id && playlistUserId) {
+      songs = await getPlaylistTracks(roomPlaylist.id, playlistUserId, this.spotifyEnv);
+    } else {
+      songs = selectSongsForGame(settings.rounds);
+    }
+
+    if (songs.length === 0) {
+      sendToSocket(ws, MessageBuilders.error("No songs available from playlist"));
+      return;
+    }
+
+    const gameSongs = songs.slice(0, settings.rounds);
+    this.roomManager.initGame(gameSongs);
 
     const gameStartedMessage = MessageBuilders.gameStarted(settings.rounds, settings.timePerRound);
     broadcastToRoom(this.roomManager.getSessions(), session.room, gameStartedMessage);

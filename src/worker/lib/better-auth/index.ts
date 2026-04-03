@@ -27,6 +27,11 @@ export const auth = (env: Env) => {
       spotify: {
         clientId: env.SPOTIFY_CLIENT_ID,
         clientSecret: env.SPOTIFY_CLIENT_SECRET,
+        scope: [
+          "user-read-email",
+          "playlist-read-private",
+          "playlist-read-collaborative",
+        ],
       },
     },
 

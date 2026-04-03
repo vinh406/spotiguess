@@ -1,9 +1,11 @@
 import type { Playlist } from "../../../shared/types";
-import { MOCK_PLAYLISTS } from "../../../shared/constants";
 import { Modal } from "../common/Modal";
 
 export interface PlaylistModalProps {
   selectedPlaylist: Playlist | null;
+  availablePlaylists: Playlist[];
+  isLoading: boolean;
+  error: string | null;
   spotifyLink: string;
   onSpotifyLinkChange: (link: string) => void;
   onSelectPlaylist: (playlist: Playlist) => void;
@@ -14,6 +16,9 @@ export interface PlaylistModalProps {
 
 export function PlaylistModal({
   selectedPlaylist,
+  availablePlaylists,
+  isLoading,
+  error,
   spotifyLink,
   onSpotifyLinkChange,
   onSelectPlaylist,
@@ -21,8 +26,6 @@ export function PlaylistModal({
   onCreateBlend,
   onClose,
 }: PlaylistModalProps) {
-  const mockPlaylists = MOCK_PLAYLISTS;
-
   return (
     <Modal
       title="Select Playlist"
@@ -89,54 +92,85 @@ export function PlaylistModal({
         <div className="flex-1 h-px bg-gray-700/50"></div>
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-3 text-gray-400">Loading playlists...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="text-center py-8 text-red-400">
+          {error}
+        </div>
+      )}
+
       {/* Playlists List */}
-      <div className="space-y-3">
-        {mockPlaylists.map((playlist) => (
-          <button
-            key={playlist.id}
-            onClick={() => onSelectPlaylist(playlist)}
-            className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all text-left ${
-              selectedPlaylist?.id === playlist.id
-                ? "bg-green-500/20 border-2 border-green-500"
-                : "bg-gray-700/30 border-2 border-transparent hover:border-gray-600"
-            }`}
-          >
-            <img
-              src={playlist.imageUrl}
-              alt={playlist.name}
-              className="w-14 h-14 rounded-lg object-cover"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-medium truncate">
-                {playlist.name}
-              </p>
-              <p className="text-sm text-gray-400 truncate">
-                {playlist.description}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                {playlist.trackCount} tracks
-              </p>
-            </div>
-            {selectedPlaylist?.id === playlist.id && (
-              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                <svg
-                  className="w-4 h-4 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
+      {!isLoading && !error && (
+        <div className="space-y-3">
+          {availablePlaylists.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">
+              No playlists available. Add playlist IDs to the server config.
+            </p>
+          ) : (
+            availablePlaylists.map((playlist) => (
+              <button
+                key={playlist.id}
+                onClick={() => onSelectPlaylist(playlist)}
+                className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all text-left ${
+                  selectedPlaylist?.id === playlist.id
+                    ? "bg-green-500/20 border-2 border-green-500"
+                    : "bg-gray-700/30 border-2 border-transparent hover:border-gray-600"
+                }`}
+              >
+                {playlist.imageUrl ? (
+                  <img
+                    src={playlist.imageUrl}
+                    alt={playlist.name}
+                    className="w-14 h-14 rounded-lg object-cover"
                   />
-                </svg>
-              </div>
-            )}
-          </button>
-        ))}
-      </div>
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-gray-600 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                    </svg>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium truncate">
+                    {playlist.name}
+                  </p>
+                  <p className="text-sm text-gray-400 truncate">
+                    {playlist.description || "No description"}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {playlist.trackCount} tracks
+                  </p>
+                </div>
+                {selectedPlaylist?.id === playlist.id && (
+                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-4 h-4 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </Modal>
   );
 }

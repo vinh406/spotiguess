@@ -13,6 +13,7 @@ export class RoomManager {
   private sessions: Map<WebSocket, UserSession>;
   private roomSettings: RoomSettings;
   private roomPlaylist: Playlist | null;
+  private roomPlaylistUserId: string | null;
 
   private gamePhase: GamePhase = 'lobby';
   private currentRound: number = 0;
@@ -29,6 +30,7 @@ export class RoomManager {
     this.sessions = new Map();
     this.roomSettings = { ...DEFAULT_ROOM_SETTINGS };
     this.roomPlaylist = null;
+    this.roomPlaylistUserId = null;
   }
 
   // --------------------------------------------------------------------------
@@ -136,8 +138,13 @@ export class RoomManager {
     return this.roomPlaylist;
   }
 
-  setRoomPlaylist(playlist: Playlist | null): void {
+  setRoomPlaylist(playlist: Playlist | null, playlistUserId: string | null = null): void {
     this.roomPlaylist = playlist;
+    this.roomPlaylistUserId = playlistUserId;
+  }
+
+  getRoomPlaylistUserId(): string | null {
+    return this.roomPlaylistUserId;
   }
 
   // --------------------------------------------------------------------------

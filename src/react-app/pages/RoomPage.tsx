@@ -48,6 +48,8 @@ export default function RoomPage() {
     startGameTrigger,
     roundEndData,
     gameEndData,
+    availablePlaylists,
+    playlistsLoading,
     handleJoinRoom,
     handleLeaveRoom,
     handleToggleReady,
@@ -60,6 +62,7 @@ export default function RoomPage() {
     handleUsersUpdate,
     setShowSettingsModal,
     setShowPlaylistModal,
+    setShowPlaylistModalWithFetch,
     setSpotifyLink,
     setGameSettings,
     setSettingsTrigger,
@@ -208,7 +211,7 @@ export default function RoomPage() {
                   onToggleReady={handleToggleReady}
                   onStartGame={handleStartGame}
                   onOpenSettings={() => setShowSettingsModal(true)}
-                  onOpenPlaylist={() => setShowPlaylistModal(true)}
+                  onOpenPlaylist={setShowPlaylistModalWithFetch}
                 />
               </div>
             </div>
@@ -313,6 +316,9 @@ export default function RoomPage() {
       {showPlaylistModal && (
         <PlaylistModal
           selectedPlaylist={selectedPlaylist}
+          availablePlaylists={availablePlaylists}
+          isLoading={playlistsLoading}
+          error={null}
           spotifyLink={spotifyLink}
           onSpotifyLinkChange={setSpotifyLink}
           onSelectPlaylist={handleSelectPlaylist}

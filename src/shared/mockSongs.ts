@@ -1,6 +1,6 @@
 import type { Song } from './types';
 
-export const MOCK_SONGS: Song[] = [
+const MOCK_SONGS: Song[] = [
   { id: '1', title: 'Blinding Lights', artist: 'The Weeknd', album: 'After Hours', albumImageUrl: 'https://picsum.photos/seed/song1/300/300', previewUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', duration: 200000 },
   { id: '2', title: 'Shape of You', artist: 'Ed Sheeran', album: 'Divide', albumImageUrl: 'https://picsum.photos/seed/song2/300/300', previewUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', duration: 234000 },
   { id: '3', title: 'Bad Guy', artist: 'Billie Eilish', album: 'When We All Fall Asleep', albumImageUrl: 'https://picsum.photos/seed/song3/300/300', previewUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', duration: 194000 },

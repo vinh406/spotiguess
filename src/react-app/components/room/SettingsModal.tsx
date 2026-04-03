@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal } from "../common/Modal";
+import { ROUND_OPTIONS, TIME_PER_ROUND_OPTIONS } from "../../../shared/constants";
 
 export interface SettingsModalProps {
   rounds: number;
@@ -8,9 +9,6 @@ export interface SettingsModalProps {
   onSave: (settings: { rounds: number; timePerRound: number }) => void;
   onClose: () => void;
 }
-
-const ROUND_OPTIONS = [5, 10, 15, 20];
-const TIME_PER_ROUND_OPTIONS = [15, 30, 45, 60, 90];
 
 export function SettingsModal({
   rounds,
