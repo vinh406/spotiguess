@@ -5,4 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
 	plugins: [react(), cloudflare(), tailwindcss()],
+	optimizeDeps: {
+		exclude: ["spotify-url-info"],
+	},
 });

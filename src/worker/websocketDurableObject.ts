@@ -11,7 +11,6 @@ import type {
 import { MessageBuilders, broadcastToRoom, sendToSocket } from "./lib/websocket";
 import { MAX_USERNAME_LENGTH, MAX_CHAT_MESSAGE_LENGTH, ROOM_CODE_REGEX, SCORING } from "../shared/constants";
 import { RoomManager } from "./lib/websocket";
-import { selectSongsForGame } from "../shared/mockSongs";
 import { getPlaylistTracks } from "./lib/spotify/playlists";
 
 // Durable Object that manages WebSocket connections and room state for a single game instance
@@ -467,15 +466,13 @@ export class WebSocketHibernationServer extends DurableObject {
     const roomPlaylist = this.roomManager.getRoomPlaylist();
     const playlistUserId = this.roomManager.getRoomPlaylistUserId();
 
-    let songs;
+    let songs: import("../shared/types").Song[] = [];
     if (roomPlaylist?.id && playlistUserId) {
       songs = await getPlaylistTracks(roomPlaylist.id, playlistUserId, this.spotifyEnv);
-    } else {
-      songs = selectSongsForGame(settings.rounds);
     }
 
     if (songs.length === 0) {
-      sendToSocket(ws, MessageBuilders.error("No songs available from playlist"));
+      sendToSocket(ws, MessageBuilders.error("No songs available. Please set a Spotify playlist first."));
       return;
     }
 

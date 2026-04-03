@@ -1,5 +1,6 @@
 import { getSpotifyClientForUser } from "./client";
 import type { Playlist, Song } from "../../../shared/types";
+import spotifyUrlInfo from "spotify-url-info";
 
 export function parseSpotifyPlaylistLink(link: string): string | null {
   const patterns = [
@@ -20,24 +21,22 @@ export function parseSpotifyPlaylistLink(link: string): string | null {
 
 export async function getPlaylistMetadata(
   playlistId: string,
-  userId: string,
-  env: Env,
+  _userId: string,
+  _env: Env,
 ): Promise<Playlist | null> {
-  const api = await getSpotifyClientForUser(userId, env);
-
-  if (!api) {
-    console.error("Failed to get Spotify client for user:", userId);
-    return null;
-  }
-
   try {
-    const playlist = await api.playlists.getPlaylist(playlistId);
+    const spotifyUrlInfoModule = spotifyUrlInfo(fetch);
+    const getDetails = spotifyUrlInfoModule.getDetails;
+
+    const spotifyUrl = `https://open.spotify.com/playlist/${playlistId}`;
+    const details = await getDetails(spotifyUrl);
+
     return {
-      id: playlist.id,
-      name: playlist.name,
-      description: playlist.description ?? undefined,
-      trackCount: (playlist as any).items?.total ?? 0,
-      imageUrl: playlist.images[0]?.url ?? undefined,
+      id: playlistId,
+      name: details.preview.title,
+      description: details.preview.description ?? undefined,
+      trackCount: details.tracks.length,
+      imageUrl: details.preview.image ?? undefined,
     };
   } catch (error) {
     console.error(
@@ -82,37 +81,29 @@ export async function getCurrentUserPlaylists(
 
 export async function getPlaylistTracks(
   playlistId: string,
-  userId: string,
-  env: Env,
+  _userId: string,
+  _env: Env,
 ): Promise<Song[]> {
-  const api = await getSpotifyClientForUser(userId, env);
-
-  if (!api) {
-    console.error("Failed to get Spotify client for user:", userId);
-    return [];
-  }
-
-  const songs: Song[] = [];
-
   try {
-    const tracks = await api.playlists.getPlaylistItems(playlistId);
+    const spotifyUrlInfoModule = spotifyUrlInfo(fetch);
+    const getTracksFromUrl = spotifyUrlInfoModule.getTracks;
 
-    for (const item of tracks.items ?? []) {
-      if (!(item as any).item) continue;
-      const track = (item as any).item;
-      songs.push({
-        id: track.id,
-        title: track.name,
-        artist: track.artists.map((a: { name: string }) => a.name).join(", "),
-        album: track.album.name,
-        albumImageUrl: track.album.images[0]?.url,
-        previewUrl: track.preview_url ?? undefined,
-        duration: track.duration_ms,
-      });
-    }
+    const spotifyUrl = `https://open.spotify.com/playlist/${playlistId}`;
+    console.log("Fetching tracks from:", spotifyUrl);
+    const tracks = await getTracksFromUrl(spotifyUrl);
+    console.log("Fetched tracks count:", tracks.length);
+
+    return tracks.map((track) => ({
+      id: track.uri.replace("spotify:track:", ""),
+      title: track.name,
+      artist: track.artist,
+      album: "",
+      albumImageUrl: undefined,
+      previewUrl: track.previewUrl,
+      duration: track.duration ?? 0,
+    }));
   } catch (error) {
     console.error(`Failed to fetch tracks for playlist ${playlistId}:`, error);
+    return [];
   }
-
-  return songs;
 }
