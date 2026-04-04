@@ -19,6 +19,7 @@ export interface RoomState {
   gameSettings: { rounds: number; timePerRound: number; audioTime: number };
   isHost: boolean | undefined;
   canStartGame: boolean | null | undefined;
+  isStartingGame: boolean;
   currentWarning: string | null;
   gamePhase: GamePhase;
   currentRound: number;
@@ -44,6 +45,7 @@ export interface RoomActions {
   handleLeaveRoom: () => void;
   handleToggleReady: () => void;
   handleStartGame: () => void;
+  resetStartingGame: () => void;
   handleSelectPlaylist: (playlist: Playlist) => void;
   handleSpotifyLinkSubmit: () => void;
   handleCreateBlend: () => void;
@@ -156,6 +158,7 @@ export function useRoomState(): RoomState & RoomActions {
   const [answerTrigger, setAnswerTrigger] = useState<{ choiceIndex: number; timestamp: number } | null>(null);
   const [roundEndData, setRoundEndData] = useState<{ correctAnswer: SongChoice; scores: PlayerScore[] } | null>(null);
   const [gameEndData, setGameEndData] = useState<{ finalScores: PlayerScore[] } | null>(null);
+  const [isStartingGame, setIsStartingGame] = useState(false);
   const fetchedPlaylistsRef = useRef(false);
 
   const handleOpenPlaylistModal = useCallback(() => {
@@ -226,10 +229,16 @@ export function useRoomState(): RoomState & RoomActions {
   }, []);
 
   const handleStartGame = useCallback(() => {
+    setIsStartingGame(true);
     setStartGameTrigger(prev => prev + 1);
   }, []);
 
+  const resetStartingGame = useCallback(() => {
+    setIsStartingGame(false);
+  }, []);
+
   const setRoundData = useCallback((round: number, totalRounds: number, song: { previewUrl?: string; albumImageUrl?: string }, choices: SongChoice[], startTime: number) => {
+    setIsStartingGame(false);
     setCurrentRound(round);
     setTotalRounds(totalRounds);
     setCurrentSong(song);
@@ -255,6 +264,7 @@ export function useRoomState(): RoomState & RoomActions {
     setSelectedChoice(null);
     setRoundEndData(null);
     setGameEndData(null);
+    setIsStartingGame(false);
   }, []);
 
   const handleSelectPlaylist = useCallback((playlist: Playlist) => {
@@ -381,6 +391,7 @@ export function useRoomState(): RoomState & RoomActions {
     gameSettings,
     isHost,
     canStartGame,
+    isStartingGame,
     currentWarning,
     gamePhase,
     currentRound,
@@ -404,6 +415,7 @@ export function useRoomState(): RoomState & RoomActions {
     handleLeaveRoom,
     handleToggleReady,
     handleStartGame,
+    resetStartingGame,
     handleSelectPlaylist,
     handleSpotifyLinkSubmit,
     handleCreateBlend,

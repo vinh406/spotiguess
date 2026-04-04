@@ -8,6 +8,7 @@ export interface RoomLobbyProps {
   isHost: boolean;
   isReady: boolean;
   canStartGame: boolean;
+  isStartingGame: boolean;
   currentWarning: string | null;
   currentUser: { username: string; userId: string } | null;
   onToggleReady: () => void;
@@ -24,6 +25,7 @@ export function RoomLobby({
   isHost,
   isReady,
   canStartGame,
+  isStartingGame,
   currentWarning,
   currentUser,
   onToggleReady,
@@ -237,14 +239,14 @@ export function RoomLobby({
           {isHost && (
             <button
               onClick={onStartGame}
-              disabled={!canStartGame}
+              disabled={!canStartGame || isStartingGame}
               className={`w-full py-4 rounded-xl font-semibold text-lg transition-all ${
-                canStartGame
+                canStartGame && !isStartingGame
                   ? "bg-gradient-to-r from-green-400 to-green-600 text-white hover:from-green-500 hover:to-green-700"
                   : "bg-gray-700/30 text-gray-500 cursor-not-allowed"
               }`}
             >
-              Start Game
+              {isStartingGame ? "Starting..." : "Start Game"}
             </button>
           )}
 

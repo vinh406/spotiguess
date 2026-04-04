@@ -33,6 +33,7 @@ export default function RoomPage() {
     gameSettings,
     isHost,
     canStartGame,
+    isStartingGame,
     currentWarning,
     gamePhase,
     currentRound,
@@ -54,6 +55,7 @@ export default function RoomPage() {
     handleLeaveRoom,
     handleToggleReady,
     handleStartGame,
+    resetStartingGame,
     handleSelectPlaylist,
     handleSpotifyLinkSubmit,
     handleCreateBlend,
@@ -207,6 +209,7 @@ export default function RoomPage() {
                   isHost={isHost ?? false}
                   isReady={isReady}
                   canStartGame={canStartGame ?? false}
+                  isStartingGame={isStartingGame}
                   currentWarning={currentWarning}
                   currentUser={currentUser}
                   onToggleReady={handleToggleReady}
@@ -239,6 +242,7 @@ export default function RoomPage() {
               onSettingsUpdate={handleSettingsUpdate}
               onPlaylistUpdate={handlePlaylistUpdate}
               onUsersUpdate={handleUsersUpdate}
+              onStartGameError={resetStartingGame}
               onGameStarted={(totalRounds, timePerRound, audioTime) => {
                 setGameSettings({ rounds: totalRounds, timePerRound: timePerRound / 1000, audioTime: audioTime / 1000 });
               }}

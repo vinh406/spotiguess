@@ -456,9 +456,15 @@ export class WebSocketHibernationServer extends DurableObject {
 
     if (!this.validateHost(ws, session)) return;
 
+    if (!this.roomManager.tryStartGame()) {
+      sendToSocket(ws, MessageBuilders.error("Game is already starting or in progress"));
+      return;
+    }
+
     const roomUsers = this.roomManager.getUsersInRoom(session.room);
 
     if (roomUsers.length < 1) {
+      this.roomManager.cancelStartGame();
       sendToSocket(ws, MessageBuilders.error("Need at least 1 player to start"));
       return;
     }
@@ -473,6 +479,7 @@ export class WebSocketHibernationServer extends DurableObject {
     }
 
     if (songs.length < settings.rounds) {
+      this.roomManager.cancelStartGame();
       sendToSocket(ws, MessageBuilders.error("Not enough songs available. Please set a larger Spotify playlist."));
       return;
     }

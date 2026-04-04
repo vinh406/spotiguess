@@ -313,6 +313,16 @@ export class RoomManager {
     }
   }
 
+  tryStartGame(): boolean {
+    if (this.gamePhase !== 'lobby') return false;
+    this.gamePhase = 'starting';
+    return true;
+  }
+
+  cancelStartGame(): void {
+    this.gamePhase = 'lobby';
+  }
+
   getScores(): PlayerScore[] {
     return Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
   }

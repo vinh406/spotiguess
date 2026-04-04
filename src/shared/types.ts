@@ -71,7 +71,7 @@ export interface PlayerScore {
 }
 
 // Game phase types
-export type GamePhase = 'lobby' | 'playing' | 'roundEnd' | 'gameEnd';
+export type GamePhase = 'lobby' | 'starting' | 'playing' | 'roundEnd' | 'gameEnd';
 
 // ============================================================================
 // WebSocket Message Types

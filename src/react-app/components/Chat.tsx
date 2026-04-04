@@ -56,6 +56,7 @@ interface ChatProps {
   onAnswerResult?: (isCorrect: boolean, points: number, streak: number) => void;
   onLeaderboardUpdate?: (leaderboard: PlayerScore[]) => void;
   onGameStateReceived?: (gameState: any) => void;
+  onStartGameError?: () => void;
   readyTrigger?: number;
   settingsTrigger?: { rounds: number; timePerRound: number; audioTime: number } | null;
   playlistTrigger?: Playlist | null;
@@ -109,7 +110,7 @@ function NotificationBadge({
   );
 }
 
-export function Chat({ username, room, userId, userImage, onUsersUpdate, onSettingsUpdate, onPlaylistUpdate, onGameStarted, onRoundStarted, onRoundEnded, onGameEnded, onAnswerResult, onLeaderboardUpdate, onGameStateReceived, readyTrigger, settingsTrigger, playlistTrigger, startGameTrigger, answerTrigger }: ChatProps) {
+export function Chat({ username, room, userId, userImage, onUsersUpdate, onSettingsUpdate, onPlaylistUpdate, onGameStarted, onRoundStarted, onRoundEnded, onGameEnded, onAnswerResult, onLeaderboardUpdate, onGameStateReceived, onStartGameError, readyTrigger, settingsTrigger, playlistTrigger, startGameTrigger, answerTrigger }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -438,6 +439,9 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
     }
 
     if (message.type === "error") {
+      if (onStartGameError) {
+        onStartGameError();
+      }
       return (
         <NotificationBadge key={index} variant="yellow">
           {message.message}
