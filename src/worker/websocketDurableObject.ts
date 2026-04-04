@@ -528,7 +528,7 @@ export class WebSocketHibernationServer extends DurableObject {
     const totalRounds = settings.rounds;
     const currentRound = this.roomManager.getCurrentRound();
 
-    if (currentRound < totalRounds) {
+    if (currentRound <= totalRounds) {
       setTimeout(() => {
         this.handleStartRoundInternal(room);
       }, SCORING.ROUND_END_DELAY);

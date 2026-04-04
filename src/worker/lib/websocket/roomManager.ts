@@ -244,8 +244,8 @@ export class RoomManager {
 
     if (this.currentSongIndex < this.songs.length - 1) {
       this.currentSongIndex++;
-      this.currentRound++;
     }
+    this.currentRound++;
 
     return { correctAnswer, scores };
   }
