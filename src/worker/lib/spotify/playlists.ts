@@ -89,10 +89,7 @@ export async function getPlaylistTracks(
     const getTracksFromUrl = spotifyUrlInfoModule.getTracks;
 
     const spotifyUrl = `https://open.spotify.com/playlist/${playlistId}`;
-    console.log("Fetching tracks from:", spotifyUrl);
     const tracks = await getTracksFromUrl(spotifyUrl);
-    console.log("Fetched tracks count:", tracks.length);
-
     return tracks.map((track) => ({
       id: track.uri.replace("spotify:track:", ""),
       title: track.name,
