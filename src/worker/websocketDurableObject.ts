@@ -478,6 +478,7 @@ export class WebSocketHibernationServer extends DurableObject {
     }
 
     this.roomManager.initGame(songs, settings.rounds);
+    this.roomManager.setLastFmApiKey(this.spotifyEnv.LAST_FM_API_KEY);
 
     const gameStartedMessage = MessageBuilders.gameStarted(settings.rounds, settings.timePerRound, settings.audioTime);
     broadcastToRoom(this.roomManager.getSessions(), session.room, gameStartedMessage);
@@ -487,8 +488,8 @@ export class WebSocketHibernationServer extends DurableObject {
     }, 2000);
   }
 
-  private handleStartRoundInternal(room: string): void {
-    const roundData = this.roomManager.startRound(() => this.handleEndRoundInternal(room));
+  private async handleStartRoundInternal(room: string): Promise<void> {
+    const roundData = await this.roomManager.startRound(() => this.handleEndRoundInternal(room));
 
     const songData = {
       previewUrl: roundData.song.previewUrl,

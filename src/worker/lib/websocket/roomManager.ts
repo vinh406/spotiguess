@@ -1,5 +1,6 @@
 import type { UserSession, RoomSettings, Playlist, Song, SongChoice, PlayerScore, GamePhase } from "../../../shared/types";
 import { DEFAULT_ROOM_SETTINGS, SETTINGS_LIMITS, SCORING } from "../../../shared/constants";
+import { getSimilarTracks, type LastFMSimilarTrack } from "../lastfm/client";
 
 function calculateScore(isCorrect: boolean, timeTakenMs: number, timePerRoundMs: number, streak: number): number {
   if (!isCorrect) return 0;
@@ -25,6 +26,8 @@ export class RoomManager {
   private answers: Map<string, { choiceIndex: number; answeredAt: number }> = new Map();
   private roundStartTime: number = 0;
   private roundTimer: ReturnType<typeof setTimeout> | null = null;
+  private similarTracksCache: Map<string, LastFMSimilarTrack[]> = new Map();
+  private lastFmApiKey: string | null = null;
 
   constructor() {
     this.sessions = new Map();
@@ -169,6 +172,7 @@ export class RoomManager {
     this.currentRound = 1;
     this.currentSongIndex = 0;
     this.answers = new Map();
+    this.similarTracksCache = new Map();
 
     this.scores = new Map();
     for (const [, session] of this.sessions.entries()) {
@@ -182,6 +186,10 @@ export class RoomManager {
     }
   }
 
+  setLastFmApiKey(apiKey: string): void {
+    this.lastFmApiKey = apiKey;
+  }
+
   getCurrentGamePhase(): GamePhase {
     return this.gamePhase;
   }
@@ -190,10 +198,24 @@ export class RoomManager {
     return this.currentRound;
   }
 
-  startRound(endRoundCallback: () => void): { song: Song; choices: SongChoice[]; round: number; totalRounds: number } {
+  async startRound(endRoundCallback: () => void): Promise<{ song: Song; choices: SongChoice[]; round: number; totalRounds: number }> {
     this.gamePhase = 'playing';
     const song = this.songs[this.currentSongIndex]!;
-    const choices = this.generateChoices(song, this.songs);
+    
+    let choices: SongChoice[];
+    if (this.lastFmApiKey) {
+      const cachedSimilarTracks = this.similarTracksCache.get(song.id);
+      if (cachedSimilarTracks) {
+        choices = this.generateChoicesWithLastFM(song, this.songs);
+      } else {
+        const similarTracks = await getSimilarTracks(song.artist, song.title, this.lastFmApiKey, 10);
+        this.similarTracksCache.set(song.id, similarTracks);
+        choices = this.generateChoicesWithLastFM(song, this.songs);
+      }
+    } else {
+      choices = this.generateChoices(song, this.songs);
+    }
+    
     this.choices = choices;
     this.roundStartTime = Date.now();
     this.answers = new Map();
@@ -356,6 +378,73 @@ export class RoomManager {
         albumImageUrl: song.albumImageUrl,
         isCorrect: false,
       })),
+    ];
+
+    return this.shuffleArray(choices).map((choice, i) => ({
+      ...choice,
+      index: i,
+    }));
+  }
+
+  generateChoicesWithLastFM(
+    correctSong: Song,
+    allSongs: Song[]
+  ): SongChoice[] {
+    const similarTracks = this.similarTracksCache.get(correctSong.id) ?? [];
+
+    let decoys: SongChoice[];
+
+    if (similarTracks.length >= 3) {
+      const shuffledSimilar = this.shuffleArray(similarTracks);
+      decoys = shuffledSimilar.slice(0, 3).map((track, i) => ({
+        index: i + 1,
+        title: track.name,
+        artist: track.artist,
+        albumImageUrl: track.imageUrl ?? undefined,
+        isCorrect: false,
+      }));
+    } else if (similarTracks.length > 0) {
+      const wrongSongs = allSongs.filter(s => s.id !== correctSong.id);
+      const shuffled = this.shuffleArray(wrongSongs);
+      const fallbackDecoys = shuffled.slice(0, 3 - similarTracks.length);
+      
+      decoys = [
+        ...similarTracks.map((track, i) => ({
+          index: i + 1,
+          title: track.name,
+          artist: track.artist,
+          albumImageUrl: track.imageUrl ?? undefined,
+          isCorrect: false,
+        })),
+        ...fallbackDecoys.map((song, i) => ({
+          index: similarTracks.length + i + 1,
+          title: song.title,
+          artist: song.artist,
+          albumImageUrl: song.albumImageUrl,
+          isCorrect: false,
+        })),
+      ];
+    } else {
+      const wrongSongs = allSongs.filter(s => s.id !== correctSong.id);
+      const shuffled = this.shuffleArray(wrongSongs);
+      decoys = shuffled.slice(0, 3).map((song, i) => ({
+        index: i + 1,
+        title: song.title,
+        artist: song.artist,
+        albumImageUrl: song.albumImageUrl,
+        isCorrect: false,
+      }));
+    }
+
+    const choices: SongChoice[] = [
+      {
+        index: 0,
+        title: correctSong.title,
+        artist: correctSong.artist,
+        albumImageUrl: correctSong.albumImageUrl,
+        isCorrect: true,
+      },
+      ...decoys,
     ];
 
     return this.shuffleArray(choices).map((choice, i) => ({
