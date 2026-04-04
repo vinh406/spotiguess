@@ -22,6 +22,7 @@ interface GameViewProps {
   choices: SongChoice[];
   startTime: number;
   timePerRound: number;
+  audioTime: number; // in milliseconds
   hasAnswered: boolean;
   selectedChoice: number | null;
   myScore: number;
@@ -36,6 +37,7 @@ export function GameView({
   choices,
   startTime,
   timePerRound,
+  audioTime,
   hasAnswered,
   selectedChoice,
   myScore,
@@ -47,6 +49,8 @@ export function GameView({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
+    let stopAudioTimeout: ReturnType<typeof setTimeout> | undefined;
+
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -55,8 +59,20 @@ export function GameView({
       audioRef.current = new Audio(song.previewUrl);
       audioRef.current.volume = volume / 100;
       audioRef.current.play().catch(() => {});
+
+      // Stop audio after audioTime
+      stopAudioTimeout = setTimeout(() => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+        }
+      }, audioTime);
     }
-  }, [song.previewUrl]);
+    
+    return () => {
+      if (stopAudioTimeout) clearTimeout(stopAudioTimeout);
+    };
+  }, [song.previewUrl, audioTime]);
 
   useEffect(() => {
     if (audioRef.current) {

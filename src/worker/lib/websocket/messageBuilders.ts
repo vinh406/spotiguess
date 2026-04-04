@@ -143,11 +143,12 @@ export const MessageBuilders = {
     };
   },
 
-  gameStarted(totalRounds: number, timePerRound: number): GameStartedMessage {
+  gameStarted(totalRounds: number, timePerRound: number, audioTime: number): GameStartedMessage {
     return {
       type: "game_started",
       totalRounds,
       timePerRound,
+      audioTime,
       timestamp: Date.now(),
     };
   },

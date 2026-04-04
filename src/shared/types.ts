@@ -29,6 +29,7 @@ export interface UserSession {
 export interface RoomSettings {
   rounds: number;
   timePerRound: number;
+  audioTime: number;
 }
 
 export interface Playlist {
@@ -113,6 +114,7 @@ export interface UpdateSettingsMessage extends BaseMessage {
   payload: {
     rounds?: number;
     timePerRound?: number;
+    audioTime?: number;
   };
 }
 
@@ -217,6 +219,7 @@ export interface GameStartedMessage extends BaseMessage {
   type: 'game_started';
   totalRounds: number;
   timePerRound: number;
+  audioTime: number;
 }
 
 export interface RoundStartedMessage extends BaseMessage {

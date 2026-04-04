@@ -33,6 +33,7 @@ interface Message {
   startTime?: number;
   correctAnswer?: SongChoice;
   scores?: PlayerScore[];
+  audioTime?: number;
   finalScores?: PlayerScore[];
   isCorrect?: boolean;
   points?: number;
@@ -48,7 +49,7 @@ interface ChatProps {
   onUsersUpdate?: (users: UserSession[]) => void;
   onSettingsUpdate?: (settings: RoomSettings) => void;
   onPlaylistUpdate?: (playlist: Playlist) => void;
-  onGameStarted?: (totalRounds: number, timePerRound: number) => void;
+  onGameStarted?: (totalRounds: number, timePerRound: number, audioTime: number) => void;
   onRoundStarted?: (round: number, totalRounds: number, song: { previewUrl?: string; albumImageUrl?: string }, choices: SongChoice[], startTime: number) => void;
   onRoundEnded?: (round: number, correctAnswer: SongChoice, scores: PlayerScore[]) => void;
   onGameEnded?: (finalScores: PlayerScore[]) => void;
@@ -56,7 +57,7 @@ interface ChatProps {
   onLeaderboardUpdate?: (leaderboard: PlayerScore[]) => void;
   onGameStateReceived?: (gameState: any) => void;
   readyTrigger?: number;
-  settingsTrigger?: { rounds: number; timePerRound: number } | null;
+  settingsTrigger?: { rounds: number; timePerRound: number; audioTime: number } | null;
   playlistTrigger?: Playlist | null;
   startGameTrigger?: number;
   answerTrigger?: { choiceIndex: number; timestamp: number } | null;
@@ -140,10 +141,11 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
       wsRef.current.send(
         JSON.stringify({
           type: "update_settings",
-          payload: {
-            rounds: settingsTrigger.rounds,
-            timePerRound: settingsTrigger.timePerRound * 1000, // Convert seconds to ms
-          },
+            payload: {
+              rounds: settingsTrigger.rounds,
+              timePerRound: settingsTrigger.timePerRound * 1000, // Convert seconds to ms
+              audioTime: settingsTrigger.audioTime * 1000, // Convert seconds to ms
+            },
           timestamp: Date.now(),
         })
       );
@@ -279,8 +281,8 @@ export function Chat({ username, room, userId, userImage, onUsersUpdate, onSetti
             break;
 
           case "game_started":
-            if (message.totalRounds !== undefined && message.timePerRound !== undefined) {
-              onGameStarted?.(message.totalRounds, message.timePerRound);
+            if (message.totalRounds !== undefined && message.timePerRound !== undefined && message.audioTime !== undefined) {
+              onGameStarted?.(message.totalRounds, message.timePerRound, message.audioTime);
             }
             break;
 

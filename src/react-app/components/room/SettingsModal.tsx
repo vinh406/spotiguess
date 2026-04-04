@@ -1,24 +1,30 @@
 import { useState } from "react";
 import { Modal } from "../common/Modal";
-import { ROUND_OPTIONS, TIME_PER_ROUND_OPTIONS } from "../../../shared/constants";
+import { ROUND_OPTIONS, TIME_PER_ROUND_OPTIONS, AUDIO_TIME_OPTIONS } from "../../../shared/constants";
 
 export interface SettingsModalProps {
   rounds: number;
-  timePerRound: number;
+  timePerRound: number; // in seconds
+  audioTime: number; // in seconds
   isHost: boolean;
-  onSave: (settings: { rounds: number; timePerRound: number }) => void;
+  onSave: (settings: { rounds: number; timePerRound: number; audioTime: number }) => void;
   onClose: () => void;
 }
 
 export function SettingsModal({
   rounds,
   timePerRound,
+  audioTime,
   isHost,
   onSave,
   onClose,
 }: SettingsModalProps) {
   const [localRounds, setLocalRounds] = useState(rounds);
   const [localTimePerRound, setLocalTimePerRound] = useState(timePerRound);
+  const [localAudioTime, setLocalAudioTime] = useState(audioTime);
+
+  // Validate audioTime <= timePerRound
+  const effectiveAudioTime = Math.min(localAudioTime, localTimePerRound);
 
   return (
     <Modal
@@ -26,7 +32,7 @@ export function SettingsModal({
       onClose={onClose}
       footer={
         <button
-          onClick={() => onSave({ rounds: localRounds, timePerRound: localTimePerRound })}
+          onClick={() => onSave({ rounds: localRounds, timePerRound: localTimePerRound, audioTime: effectiveAudioTime })}
           className="w-full py-3 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-xl hover:from-green-500 hover:to-green-700 transition-all font-semibold"
         >
           Save
@@ -64,13 +70,42 @@ export function SettingsModal({
             {TIME_PER_ROUND_OPTIONS.map((time) => (
               <button
                 key={time}
-                onClick={() => isHost && setLocalTimePerRound(time)}
+                onClick={() => {
+                    if (isHost) {
+                        setLocalTimePerRound(time);
+                        if (localAudioTime > time) {
+                            setLocalAudioTime(time);
+                        }
+                    }
+                }}
                 disabled={!isHost}
                 className={`py-3 rounded-xl font-medium transition-all ${
                   localTimePerRound === time
                     ? "bg-green-500 text-white"
                     : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600"
                 } ${!isHost ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                {time}s
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-3">
+            Audio Duration (seconds)
+          </label>
+          <div className="grid grid-cols-5 gap-3">
+            {AUDIO_TIME_OPTIONS.map((time) => (
+              <button
+                key={time}
+                onClick={() => isHost && setLocalAudioTime(time)}
+                disabled={!isHost || time > localTimePerRound}
+                className={`py-3 rounded-xl font-medium transition-all ${
+                  localAudioTime === time
+                    ? "bg-green-500 text-white"
+                    : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600"
+                } ${!isHost || time > localTimePerRound ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {time}s
               </button>

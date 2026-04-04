@@ -9,6 +9,7 @@ import type { RoomSettings } from './types';
 export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   rounds: 10,
   timePerRound: 20000, // 20 seconds in milliseconds
+  audioTime: 5000, // 5 seconds in milliseconds
 };
 
 // ============================================================================
@@ -17,7 +18,8 @@ export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
 
 export const SETTINGS_LIMITS = {
   rounds: { min: 1, max: 50 },
-  timePerRound: { min: 5000, max: 120000 }, // 5-120 seconds in milliseconds
+  timePerRound: { min: 5000, max: 30000 }, // 5-30 seconds
+  audioTime: { min: 1000, max: 15000 }, // 1-15 seconds
 } as const;
 
 // ============================================================================
@@ -25,7 +27,8 @@ export const SETTINGS_LIMITS = {
 // ============================================================================
 
 export const ROUND_OPTIONS = [5, 10, 15, 20] as const;
-export const TIME_PER_ROUND_OPTIONS = [10, 15, 20, 25, 30] as const;
+export const TIME_PER_ROUND_OPTIONS = [5, 10, 15, 20, 30] as const;
+export const AUDIO_TIME_OPTIONS = [1, 3, 5, 10, 15] as const;
 
 // ============================================================================
 // Room Code Generation

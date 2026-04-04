@@ -417,10 +417,11 @@ export class WebSocketHibernationServer extends DurableObject {
 
     if (!this.validateHost(ws, session)) return;
 
-    const { rounds, timePerRound } = data.payload || {};
+    const { rounds, timePerRound, audioTime } = data.payload || {};
     const updatedSettings = this.roomManager.updateSettings(
       rounds,
-      timePerRound
+      timePerRound,
+      audioTime
     );
 
     // Broadcast settings update
@@ -478,7 +479,7 @@ export class WebSocketHibernationServer extends DurableObject {
 
     this.roomManager.initGame(songs, settings.rounds);
 
-    const gameStartedMessage = MessageBuilders.gameStarted(settings.rounds, settings.timePerRound);
+    const gameStartedMessage = MessageBuilders.gameStarted(settings.rounds, settings.timePerRound, settings.audioTime);
     broadcastToRoom(this.roomManager.getSessions(), session.room, gameStartedMessage);
 
     setTimeout(() => {

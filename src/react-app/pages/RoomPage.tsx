@@ -168,6 +168,7 @@ export default function RoomPage() {
                   choices={choices}
                   startTime={roundStartTime}
                   timePerRound={gameSettings.timePerRound * 1000}
+                  audioTime={gameSettings.audioTime * 1000}
                   hasAnswered={hasAnswered}
                   selectedChoice={selectedChoice}
                   myScore={myScore}
@@ -238,8 +239,8 @@ export default function RoomPage() {
               onSettingsUpdate={handleSettingsUpdate}
               onPlaylistUpdate={handlePlaylistUpdate}
               onUsersUpdate={handleUsersUpdate}
-              onGameStarted={(totalRounds, timePerRound) => {
-                setGameSettings({ rounds: totalRounds, timePerRound: timePerRound / 1000 });
+              onGameStarted={(totalRounds, timePerRound, audioTime) => {
+                setGameSettings({ rounds: totalRounds, timePerRound: timePerRound / 1000, audioTime: audioTime / 1000 });
               }}
               onRoundStarted={(round, totalRounds, song, choices, startTime) => {
                 setGamePhase('playing');
@@ -303,6 +304,7 @@ export default function RoomPage() {
         <SettingsModal
           rounds={gameSettings.rounds}
           timePerRound={gameSettings.timePerRound}
+          audioTime={gameSettings.audioTime}
           isHost={isHost ?? false}
           onSave={(settings) => {
             setGameSettings(settings);

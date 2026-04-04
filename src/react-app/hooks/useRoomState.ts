@@ -14,9 +14,9 @@ export interface RoomState {
   showPlaylistModal: boolean;
   spotifyLink: string;
   readyTrigger: number;
-  settingsTrigger: { rounds: number; timePerRound: number } | null;
+  settingsTrigger: { rounds: number; timePerRound: number; audioTime: number } | null;
   playlistTrigger: Playlist | null;
-  gameSettings: { rounds: number; timePerRound: number };
+  gameSettings: { rounds: number; timePerRound: number; audioTime: number };
   isHost: boolean | undefined;
   canStartGame: boolean | null | undefined;
   currentWarning: string | null;
@@ -47,15 +47,15 @@ export interface RoomActions {
   handleSelectPlaylist: (playlist: Playlist) => void;
   handleSpotifyLinkSubmit: () => void;
   handleCreateBlend: () => void;
-  handleSettingsUpdate: (settings: { rounds: number; timePerRound: number }) => void;
+  handleSettingsUpdate: (settings: { rounds: number; timePerRound: number; audioTime: number }) => void;
   handlePlaylistUpdate: (playlist: { id: string; name: string; description?: string; trackCount: number; imageUrl?: string }) => void;
   handleUsersUpdate: (users: UserSession[]) => Player[];
   setShowSettingsModal: (show: boolean) => void;
   setShowPlaylistModal: (show: boolean) => void;
   setShowPlaylistModalWithFetch: () => void;
   setSpotifyLink: (link: string) => void;
-  setGameSettings: React.Dispatch<React.SetStateAction<{ rounds: number; timePerRound: number }>>;
-  setSettingsTrigger: (trigger: { rounds: number; timePerRound: number } | null) => void;
+  setGameSettings: React.Dispatch<React.SetStateAction<{ rounds: number; timePerRound: number; audioTime: number }>>;
+  setSettingsTrigger: (trigger: { rounds: number; timePerRound: number; audioTime: number } | null) => void;
   setGamePhase: (phase: GamePhase) => void;
   setRoundData: (round: number, totalRounds: number, song: { previewUrl?: string; albumImageUrl?: string }, choices: SongChoice[], startTime: number) => void;
   setScores: (scores: PlayerScore[]) => void;
@@ -132,13 +132,14 @@ export function useRoomState(): RoomState & RoomActions {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [spotifyLink, setSpotifyLink] = useState("");
   const [readyTrigger, setReadyTrigger] = useState(0);
-  const [settingsTrigger, setSettingsTrigger] = useState<{ rounds: number; timePerRound: number } | null>(null);
+  const [settingsTrigger, setSettingsTrigger] = useState<{ rounds: number; timePerRound: number; audioTime: number } | null>(null);
   const [playlistTrigger, setPlaylistTrigger] = useState<Playlist | null>(null);
   const [availablePlaylists, setAvailablePlaylists] = useState<Playlist[]>([]);
   const [playlistsLoading, setPlaylistsLoading] = useState(true);
   const [gameSettings, setGameSettings] = useState({
     rounds: DEFAULT_ROOM_SETTINGS.rounds,
     timePerRound: DEFAULT_ROOM_SETTINGS.timePerRound / 1000,
+    audioTime: DEFAULT_ROOM_SETTINGS.audioTime / 1000,
   });
   const [gamePhase, setGamePhase] = useState<GamePhase>('lobby');
   const [currentRound, setCurrentRound] = useState(0);
@@ -204,11 +205,12 @@ export function useRoomState(): RoomState & RoomActions {
     setReadyTrigger((prev) => prev + 1);
   }, []);
 
-  const handleSettingsUpdate = useCallback((settings: { rounds: number; timePerRound: number }) => {
+  const handleSettingsUpdate = useCallback((settings: { rounds: number; timePerRound: number; audioTime: number }) => {
     console.log('[RoomPage] Received settings update from server:', settings);
     setGameSettings({
       rounds: settings.rounds,
       timePerRound: settings.timePerRound / 1000,
+      audioTime: settings.audioTime / 1000,
     });
   }, []);
 
