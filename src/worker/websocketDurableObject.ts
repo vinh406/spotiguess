@@ -471,13 +471,12 @@ export class WebSocketHibernationServer extends DurableObject {
       songs = await getPlaylistTracks(roomPlaylist.id, playlistUserId, this.spotifyEnv);
     }
 
-    if (songs.length === 0) {
-      sendToSocket(ws, MessageBuilders.error("No songs available. Please set a Spotify playlist first."));
+    if (songs.length < settings.rounds) {
+      sendToSocket(ws, MessageBuilders.error("Not enough songs available. Please set a larger Spotify playlist."));
       return;
     }
 
-    const gameSongs = songs.slice(0, settings.rounds);
-    this.roomManager.initGame(gameSongs);
+    this.roomManager.initGame(songs, settings.rounds);
 
     const gameStartedMessage = MessageBuilders.gameStarted(settings.rounds, settings.timePerRound);
     broadcastToRoom(this.roomManager.getSessions(), session.room, gameStartedMessage);

@@ -151,10 +151,10 @@ export class RoomManager {
   // Game State Management
   // --------------------------------------------------------------------------
 
-  initGame(songs: Song[]): void {
+  initGame(songs: Song[], rounds: number): void {
     this.gamePhase = 'playing';
     this.songs = this.shuffleArray(songs);
-    this.totalRounds = songs.length;
+    this.totalRounds = rounds;
     this.currentRound = 1;
     this.currentSongIndex = 0;
     this.answers = new Map();
