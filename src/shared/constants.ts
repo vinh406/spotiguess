@@ -8,8 +8,8 @@ import type { RoomSettings } from './types';
 
 export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   rounds: 10,
-  timePerRound: 20000, // 20 seconds in milliseconds
-  audioTime: 5000, // 5 seconds in milliseconds
+  timePerRound: 10000, // 10 seconds in milliseconds
+  audioTime: 10000, // 10 seconds in milliseconds
 };
 
 // ============================================================================
