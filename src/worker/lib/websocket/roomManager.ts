@@ -1,6 +1,6 @@
 import type { UserSession, RoomSettings, Playlist, Song, SongChoice, PlayerScore, GamePhase } from "../../../shared/types";
 import { DEFAULT_ROOM_SETTINGS, SETTINGS_LIMITS, SCORING } from "../../../shared/constants";
-import { getSimilarTracks, type LastFMSimilarTrack } from "../lastfm/client";
+import { getSimilarTracks, getArtistTopTracks, type LastFMSimilarTrack } from "../lastfm/client";
 
 function calculateScore(isCorrect: boolean, timeTakenMs: number, timePerRoundMs: number, streak: number): number {
   if (!isCorrect) return 0;
@@ -208,7 +208,10 @@ export class RoomManager {
       if (cachedSimilarTracks) {
         choices = this.generateChoicesWithLastFM(song, this.songs);
       } else {
-        const similarTracks = await getSimilarTracks(song.artist, song.title, this.lastFmApiKey, 10);
+        let similarTracks = await getSimilarTracks(song.artist, song.title, this.lastFmApiKey, 10);
+        if (!similarTracks.length) {
+          similarTracks = await getArtistTopTracks(song.artist, this.lastFmApiKey, 10);
+        }
         this.similarTracksCache.set(song.id, similarTracks);
         choices = this.generateChoicesWithLastFM(song, this.songs);
       }
