@@ -190,7 +190,7 @@ export class RoomManager {
     return this.currentRound;
   }
 
-  startRound(): { song: Song; choices: SongChoice[]; round: number; totalRounds: number } {
+  startRound(endRoundCallback: () => void): { song: Song; choices: SongChoice[]; round: number; totalRounds: number } {
     this.gamePhase = 'playing';
     const song = this.songs[this.currentSongIndex]!;
     const choices = this.generateChoices(song, this.songs);
@@ -198,12 +198,29 @@ export class RoomManager {
     this.roundStartTime = Date.now();
     this.answers = new Map();
 
+    if (this.roundTimer) clearTimeout(this.roundTimer);
+    this.roundTimer = setTimeout(endRoundCallback, this.roomSettings.timePerRound);
+
     return {
       song,
       choices,
       round: this.currentRound,
       totalRounds: this.totalRounds,
     };
+  }
+
+  checkAndEndRoundEarly(room: string, endRoundCallback: () => void): boolean {
+    if (this.allPlayersAnswered(room)) {
+      const timeElapsed = Date.now() - this.roundStartTime;
+      const remainingTime = this.roomSettings.timePerRound - timeElapsed;
+
+      if (remainingTime > SCORING.EARLY_ROUND_END_DELAY) {
+        if (this.roundTimer) clearTimeout(this.roundTimer);
+        this.roundTimer = setTimeout(endRoundCallback, SCORING.EARLY_ROUND_END_DELAY);
+        return true;
+      }
+    }
+    return false;
   }
 
   recordAnswer(userId: string, choiceIndex: number): { isCorrect: boolean; points: number; streak: number } {
@@ -300,6 +317,11 @@ export class RoomManager {
       roundStartTime: this.roundStartTime,
       answers: this.answers,
     };
+  }
+
+  allPlayersAnswered(room: string): boolean {
+    const usersInRoom = this.getUsersInRoom(room);
+    return usersInRoom.every(user => this.answers.has(user.userId));
   }
 
   addPlayerToScores(userId: string, username: string, userImage?: string): void {

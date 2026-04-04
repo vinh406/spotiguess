@@ -488,8 +488,7 @@ export class WebSocketHibernationServer extends DurableObject {
   }
 
   private handleStartRoundInternal(room: string): void {
-    const roundData = this.roomManager.startRound();
-    const settings = this.roomManager.getRoomSettings();
+    const roundData = this.roomManager.startRound(() => this.handleEndRoundInternal(room));
 
     const songData = {
       previewUrl: roundData.song.previewUrl,
@@ -504,10 +503,6 @@ export class WebSocketHibernationServer extends DurableObject {
       Date.now()
     );
     broadcastToRoom(this.roomManager.getSessions(), room, roundStartedMessage);
-
-    setTimeout(() => {
-      this.handleEndRoundInternal(room);
-    }, settings.timePerRound);
   }
 
   private handleEndRoundInternal(room: string): void {
@@ -574,5 +569,7 @@ export class WebSocketHibernationServer extends DurableObject {
     const scores = this.roomManager.getScores();
     const leaderboardMessage = MessageBuilders.leaderboardUpdate(scores);
     broadcastToRoom(this.roomManager.getSessions(), session.room, leaderboardMessage);
+
+    this.roomManager.checkAndEndRoundEarly(session.room, () => this.handleEndRoundInternal(session.room));
   }
 }
