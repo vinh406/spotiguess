@@ -1,4 +1,4 @@
-export interface UsernamePromptProps {
+interface UsernamePromptProps {
   roomName: string;
   onSubmit: (username: string) => void;
   onBack: () => void;

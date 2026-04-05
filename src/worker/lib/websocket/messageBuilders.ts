@@ -228,5 +228,3 @@ export const MessageBuilders = {
     };
   },
 };
-
-export type { ErrorMessage };

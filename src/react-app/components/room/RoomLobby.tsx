@@ -1,6 +1,6 @@
 import type { Player, Playlist } from "../../../shared/types";
 
-export interface RoomLobbyProps {
+interface RoomLobbyProps {
   roomName: string;
   players: Player[];
   selectedPlaylist: Playlist | null;

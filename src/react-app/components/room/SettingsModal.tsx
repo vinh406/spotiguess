@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Modal } from "../common/Modal";
 import { ROUND_OPTIONS, TIME_PER_ROUND_OPTIONS, AUDIO_TIME_OPTIONS } from "../../../shared/constants";
 
-export interface SettingsModalProps {
+interface SettingsModalProps {
   rounds: number;
   timePerRound: number; // in seconds
   audioTime: number; // in seconds

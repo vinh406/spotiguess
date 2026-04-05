@@ -3,7 +3,7 @@ import { DEFAULT_ROOM_SETTINGS, SETTINGS_LIMITS, SCORING } from "../../../shared
 import { SessionManager } from "./sessionManager";
 import { GameEngine, type GameStateSnapshot } from "./gameEngine";
 
-export interface UnifiedRoomState {
+interface UnifiedRoomState {
   room: string;
   settings: RoomSettings;
   playlist: Playlist | null;
@@ -54,17 +54,9 @@ export class RoomManager {
     return this.sessionManager.getUsersInRoom(room);
   }
 
-  getConnectionCount(room: string): number {
-    return this.sessionManager.getConnectionCount(room);
-  }
-
   // Settings Management
   getRoomSettings(): RoomSettings {
     return this.roomSettings;
-  }
-
-  setRoomSettings(settings: RoomSettings): void {
-    this.roomSettings = settings;
   }
 
   updateSettings(
@@ -190,29 +182,6 @@ export class RoomManager {
 
   getScores(): PlayerScore[] {
     return this.gameEngine.getScores();
-  }
-
-  getScoreForUser(userId: string): PlayerScore | undefined {
-    return this.gameEngine.getScoreForUser(userId);
-  }
-
-  getCurrentRoundState() {
-    const state = this.gameEngine.getGameState();
-    const song = state.songs[state.currentSongIndex];
-    if (state.phase !== 'playing' || !song) {
-      return null;
-    }
-
-    return {
-      round: state.currentRound,
-      totalRounds: state.totalRounds,
-      song,
-      choices: state.choices,
-      roundStartTime: state.roundStartTime,
-      roundEndTime: state.roundEndTime,
-      roundDuration: state.roundDuration,
-      answers: state.answers,
-    };
   }
 
   addPlayerToScores(userId: string, username: string, userImage?: string): void {

@@ -37,7 +37,6 @@ export default function RoomPage() {
     totalRounds,
     currentSong,
     choices,
-    roundStartTime,
     roundEndTime,
     roundDuration,
     myScore,
@@ -150,7 +149,6 @@ export default function RoomPage() {
                   totalRounds={totalRounds}
                   song={currentSong}
                   choices={choices}
-                  startTime={roundStartTime}
                   endTime={roundEndTime}
                   duration={roundDuration}
                   audioTime={gameSettings.audioTime * 1000}

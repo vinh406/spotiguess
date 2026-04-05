@@ -43,17 +43,3 @@ export function sendToSocket(ws: WebSocket, message: OutgoingMessage): boolean {
     return false;
   }
 }
-
-/**
- * Sends a raw string message to a WebSocket
- * Returns true if successful, false otherwise
- */
-export function sendRawToSocket(ws: WebSocket, messageString: string): boolean {
-  try {
-    ws.send(messageString);
-    return true;
-  } catch (error) {
-    console.error("Failed to send message to socket:", error);
-    return false;
-  }
-}

@@ -1,7 +1,7 @@
 import type { Playlist } from "../../../shared/types";
 import { Modal } from "../common/Modal";
 
-export interface PlaylistModalProps {
+interface PlaylistModalProps {
   selectedPlaylist: Playlist | null;
   availablePlaylists: Playlist[];
   isLoading: boolean;

@@ -287,8 +287,6 @@ export type OutgoingMessage =
   | AnswerResultMessage
   | LeaderboardUpdateMessage;
 
-export type WebSocketMessage = IncomingMessage | OutgoingMessage;
-
 /**
  * OutgoingMessage with room connection stats added by broadcastToRoom.
  */

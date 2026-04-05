@@ -10,9 +10,9 @@ import type {
 import { DEFAULT_ROOM_SETTINGS } from "../../shared/constants";
 import { useGameSocket } from "./useGameSocket";
 
-export type ChatBoxMessage = ChatMessage | UserJoinedMessage | UserLeftMessage;
+type ChatBoxMessage = ChatMessage | UserJoinedMessage | UserLeftMessage;
 
-export interface RoomState {
+interface RoomState {
   metadata: {
     roomName: string;
     players: Player[];

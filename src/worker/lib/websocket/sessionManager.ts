@@ -45,14 +45,4 @@ export class SessionManager {
     });
     return users;
   }
-
-  getConnectionCount(room: string): number {
-    let count = 0;
-    this.sessions.forEach((session) => {
-      if (session.room === room) {
-        count++;
-      }
-    });
-    return count;
-  }
 }

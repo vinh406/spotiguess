@@ -194,10 +194,6 @@ export class GameEngine {
     return Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
   }
 
-  getScoreForUser(userId: string): PlayerScore | undefined {
-    return this.scores.get(userId);
-  }
-
   getGameState(): GameStateSnapshot {
     return {
       phase: this.phase,

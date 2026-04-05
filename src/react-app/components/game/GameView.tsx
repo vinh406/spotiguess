@@ -20,7 +20,6 @@ interface GameViewProps {
   totalRounds: number;
   song: { previewUrl?: string; albumImageUrl?: string };
   choices: SongChoice[];
-  startTime: number;
   endTime: number;
   duration: number; // in milliseconds
   audioTime: number; // in milliseconds
