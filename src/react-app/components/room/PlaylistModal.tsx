@@ -112,7 +112,7 @@ export function PlaylistModal({
         <div className="space-y-3">
           {availablePlaylists.length === 0 ? (
             <p className="text-center text-gray-400 py-8">
-              No playlists available. Add playlist IDs to the server config.
+              No playlist found. Import a public Spotify playlist to get started!
             </p>
           ) : (
             availablePlaylists.map((playlist) => (

@@ -21,8 +21,6 @@ export function parseSpotifyPlaylistLink(link: string): string | null {
 
 export async function getPlaylistMetadata(
   playlistId: string,
-  _userId: string,
-  _env: Env,
 ): Promise<Playlist | null> {
   try {
     const spotifyUrlInfoModule = spotifyUrlInfo(fetch);
