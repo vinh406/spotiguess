@@ -1,285 +1,492 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useReducer, useCallback, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
-import type { Player, Playlist, SongChoice, PlayerScore, GamePhase, OutgoingMessage, ChatMessage, GameStateMessage, UserJoinedMessage, UserLeftMessage, UsersUpdatedMessage, AnswerMessage } from "../../shared/types";
+import type { 
+  Player, Playlist, SongChoice, PlayerScore, GamePhase, 
+  OutgoingMessage, ChatMessage, UserJoinedMessage, UserLeftMessage, 
+  UsersUpdatedMessage, AnswerMessage, UnifiedRoomState, 
+  UserSession, RoomSettings, UnifiedRoomStateMessage
+} from "../../shared/types";
 import { DEFAULT_ROOM_SETTINGS } from "../../shared/constants";
 import { useGameSocket } from "./useGameSocket";
 
 export type ChatBoxMessage = ChatMessage | UserJoinedMessage | UserLeftMessage;
 
 export interface RoomState {
-  currentUser: { username: string; userId: string } | null;
-  showUsernamePrompt: boolean;
-  players: Player[];
-  selectedPlaylist: Playlist | null;
-  isReady: boolean;
-  showSettingsModal: boolean;
-  showPlaylistModal: boolean;
-  spotifyLink: string;
-  gameSettings: { rounds: number; timePerRound: number; audioTime: number };
-  isHost: boolean | undefined;
-  canStartGame: boolean | null | undefined;
-  isStartingGame: boolean;
-  currentWarning: string | null;
-  gamePhase: GamePhase;
-  currentRound: number;
-  totalRounds: number;
-  currentSong: { previewUrl?: string; albumImageUrl?: string } | null;
-  choices: SongChoice[];
-  roundStartTime: number;
-  roundEndTime: number;
-  roundDuration: number;
-  scores: PlayerScore[];
-  myScore: number;
-  myStreak: number;
-  hasAnswered: boolean;
-  selectedChoice: number | null;
-  roundEndData: { correctAnswer: SongChoice; scores: PlayerScore[] } | null;
-  gameEndData: { finalScores: PlayerScore[] } | null;
-  availablePlaylists: Playlist[];
-  playlistsLoading: boolean;
-  isConnected: boolean;
-  chatMessages: ChatBoxMessage[];
+  metadata: {
+    roomName: string;
+    players: Player[];
+    selectedPlaylist: Playlist | null;
+    gameSettings: { rounds: number; timePerRound: number; audioTime: number };
+    isHost: boolean;
+    isReady: boolean;
+  };
+  game: {
+    phase: GamePhase;
+    currentRound: number;
+    totalRounds: number;
+    currentSong: { previewUrl?: string; albumImageUrl?: string } | null;
+    choices: SongChoice[];
+    roundStartTime: number;
+    roundEndTime: number;
+    roundDuration: number;
+    scores: PlayerScore[];
+    myScore: number;
+    myStreak: number;
+    hasAnswered: boolean;
+    selectedChoice: number | null;
+    roundEndData: { correctAnswer: SongChoice; scores: PlayerScore[] } | null;
+    gameEndData: { finalScores: PlayerScore[] } | null;
+  };
+  ui: {
+    currentUser: { username: string; userId: string } | null;
+    showUsernamePrompt: boolean;
+    showSettingsModal: boolean;
+    showPlaylistModal: boolean;
+    spotifyLink: string;
+    availablePlaylists: Playlist[];
+    playlistsLoading: boolean;
+    isStartingGame: boolean;
+    chatMessages: ChatBoxMessage[];
+    isConnected: boolean;
+  };
 }
 
-export interface RoomActions {
-  handleJoinRoom: (username: string) => void;
-  handleLeaveRoom: () => void;
-  handleToggleReady: () => void;
-  handleStartGame: () => void;
-  handleSelectPlaylist: (playlist: Playlist) => void;
-  handleSpotifyLinkSubmit: () => void;
-  handleCreateBlend: () => void;
-  handleSettingsUpdate: (settings: { rounds: number; timePerRound: number; audioTime: number }) => void;
-  handleAnswer: (choiceIndex: number) => void;
-  handlePlayAgain: () => void;
-  handleSendMessage: (content: string) => void;
-  setShowSettingsModal: (show: boolean) => void;
-  setShowPlaylistModal: (show: boolean) => void;
-  setShowPlaylistModalWithFetch: () => void;
-  setSpotifyLink: (link: string) => void;
-  resetToLobby: () => void;
-}
+type RoomAction =
+  | { type: 'SYNC_UNIFIED_STATE'; state: UnifiedRoomState; currentUserId: string }
+  | { type: 'UPDATE_PLAYERS'; users: UserSession[]; currentUserId: string }
+  | { type: 'CHAT_MESSAGE'; message: ChatBoxMessage }
+  | { type: 'SETTINGS_UPDATED'; settings: RoomSettings }
+  | { type: 'PLAYLIST_UPDATED'; playlist: Playlist }
+  | { type: 'GAME_STARTED'; totalRounds: number; timePerRound: number; audioTime: number }
+  | { type: 'ROUND_STARTED'; round: number; totalRounds: number; song: { previewUrl?: string; albumImageUrl?: string }; choices: SongChoice[]; startTime: number; endTime: number; duration: number }
+  | { type: 'ROUND_ENDED'; round: number; correctAnswer: SongChoice; scores: PlayerScore[] }
+  | { type: 'GAME_ENDED'; finalScores: PlayerScore[] }
+  | { type: 'ANSWER_RESULT'; isCorrect: boolean; points: number; streak: number }
+  | { type: 'LEADERBOARD_UPDATE'; leaderboard: PlayerScore[] }
+  | { type: 'SET_CONNECTED'; connected: boolean }
+  | { type: 'SET_USER'; user: { username: string; userId: string } | null }
+  | { type: 'SET_SHOW_USERNAME_PROMPT'; show: boolean }
+  | { type: 'SET_SHOW_SETTINGS_MODAL'; show: boolean }
+  | { type: 'SET_SHOW_PLAYLIST_MODAL'; show: boolean }
+  | { type: 'SET_SPOTIFY_LINK'; link: string }
+  | { type: 'SET_AVAILABLE_PLAYLISTS'; playlists: Playlist[] }
+  | { type: 'SET_PLAYLISTS_LOADING'; loading: boolean }
+  | { type: 'LOCAL_ANSWER'; choiceIndex: number }
+  | { type: 'TOGGLE_READY' }
+  | { type: 'RESET_TO_LOBBY' };
 
-function getInitialAuthState(isLoading: boolean, isAuthenticated: boolean, user: { name?: string; id?: string; image?: string | null } | null): {
-  currentUser: { username: string; userId: string } | null;
-  showUsernamePrompt: boolean;
-} {
-  if (isLoading) {
-    return { currentUser: null, showUsernamePrompt: false };
-  }
-
-  if (isAuthenticated && user) {
-    return {
-      currentUser: { username: user.name?.trim() || "", userId: user.id || "" },
-      showUsernamePrompt: false,
-    };
-  }
-
-  const storedUsername = sessionStorage.getItem("chat-username");
-  const storedUserId = sessionStorage.getItem("chat-userId");
-  if (storedUsername) {
-    const userId = storedUserId || `user-${Math.random().toString(36).substr(2, 9)}`;
-    if (!storedUserId) {
-      sessionStorage.setItem("chat-userId", userId);
+function roomReducer(state: RoomState, action: RoomAction): RoomState {
+  switch (action.type) {
+    case 'SYNC_UNIFIED_STATE': {
+      const { state: unified, currentUserId } = action;
+      const myPlayer = unified.users.find(u => u.userId === currentUserId);
+      const myScoreObj = unified.game.scores[currentUserId];
+      const myAnswer = unified.game.answers[currentUserId];
+      
+      return {
+        ...state,
+        metadata: {
+          ...state.metadata,
+          roomName: unified.room,
+          players: unified.users.map(u => ({
+            userId: u.userId,
+            username: u.username,
+            userImage: u.userImage,
+            isReady: u.isReady,
+            isHost: u.isHost,
+          })),
+          selectedPlaylist: unified.playlist,
+          gameSettings: {
+            rounds: unified.settings.rounds,
+            timePerRound: unified.settings.timePerRound / 1000,
+            audioTime: unified.settings.audioTime / 1000,
+          },
+          isHost: myPlayer?.isHost ?? false,
+          isReady: myPlayer?.isReady ?? false,
+        },
+        game: {
+          ...state.game,
+          phase: unified.game.phase,
+          currentRound: unified.game.currentRound,
+          totalRounds: unified.game.totalRounds,
+          currentSong: unified.game.choices.length > 0 ? {
+              previewUrl: unified.game.songs[unified.game.currentSongIndex]?.previewUrl,
+              albumImageUrl: unified.game.songs[unified.game.currentSongIndex]?.albumImageUrl,
+          } : null,
+          choices: unified.game.choices,
+          roundStartTime: unified.game.roundStartTime,
+          roundEndTime: unified.game.roundEndTime,
+          roundDuration: unified.game.roundDuration,
+          scores: Object.values(unified.game.scores).sort((a, b) => b.score - a.score),
+          myScore: myScoreObj?.score ?? 0,
+          myStreak: myScoreObj?.streak ?? 0,
+          hasAnswered: !!myAnswer,
+          selectedChoice: myAnswer?.choiceIndex ?? null,
+        }
+      };
     }
-    return {
-      currentUser: { username: storedUsername, userId },
-      showUsernamePrompt: false,
-    };
-  }
 
-  return { currentUser: null, showUsernamePrompt: true };
+    case 'UPDATE_PLAYERS': {
+      const myPlayer = action.users.find(u => u.userId === action.currentUserId);
+      return {
+        ...state,
+        metadata: {
+          ...state.metadata,
+          players: action.users.map(u => ({
+            userId: u.userId,
+            username: u.username,
+            userImage: u.userImage,
+            isReady: u.isReady,
+            isHost: u.isHost,
+          })),
+          isHost: myPlayer?.isHost ?? state.metadata.isHost,
+          isReady: myPlayer?.isReady ?? state.metadata.isReady,
+        }
+      };
+    }
+
+    case 'CHAT_MESSAGE':
+      return {
+        ...state,
+        ui: {
+          ...state.ui,
+          chatMessages: [...state.ui.chatMessages, action.message].slice(-200)
+        }
+      };
+
+    case 'SETTINGS_UPDATED':
+      return {
+        ...state,
+        metadata: {
+          ...state.metadata,
+          gameSettings: {
+            rounds: action.settings.rounds,
+            timePerRound: action.settings.timePerRound / 1000,
+            audioTime: action.settings.audioTime / 1000,
+          }
+        }
+      };
+
+    case 'PLAYLIST_UPDATED':
+      return {
+        ...state,
+        metadata: {
+          ...state.metadata,
+          selectedPlaylist: action.playlist
+        }
+      };
+
+    case 'GAME_STARTED':
+      return {
+        ...state,
+        ui: { ...state.ui, isStartingGame: true },
+        metadata: {
+            ...state.metadata,
+            gameSettings: {
+                rounds: action.totalRounds,
+                timePerRound: action.timePerRound / 1000,
+                audioTime: action.audioTime / 1000,
+            }
+        }
+      };
+
+    case 'ROUND_STARTED':
+      return {
+        ...state,
+        ui: { ...state.ui, isStartingGame: false },
+        game: {
+          ...state.game,
+          phase: 'playing',
+          currentRound: action.round,
+          totalRounds: action.totalRounds,
+          currentSong: action.song,
+          choices: action.choices,
+          roundStartTime: action.startTime,
+          roundEndTime: action.endTime,
+          roundDuration: action.duration,
+          hasAnswered: false,
+          selectedChoice: null,
+          roundEndData: null,
+          gameEndData: null,
+        }
+      };
+
+    case 'ROUND_ENDED':
+      return {
+        ...state,
+        game: {
+          ...state.game,
+          phase: 'roundEnd',
+          roundEndData: { correctAnswer: action.correctAnswer, scores: action.scores },
+          scores: action.scores,
+        }
+      };
+
+    case 'GAME_ENDED':
+      return {
+        ...state,
+        game: {
+          ...state.game,
+          phase: 'gameEnd',
+          gameEndData: { finalScores: action.finalScores },
+          scores: action.finalScores,
+        }
+      };
+
+    case 'ANSWER_RESULT':
+      return {
+        ...state,
+        game: {
+          ...state.game,
+          myScore: action.isCorrect ? state.game.myScore + action.points : state.game.myScore,
+          myStreak: action.streak,
+        }
+      };
+
+    case 'LEADERBOARD_UPDATE':
+      return {
+        ...state,
+        game: { ...state.game, scores: action.leaderboard }
+      };
+
+    case 'SET_CONNECTED':
+      return { ...state, ui: { ...state.ui, isConnected: action.connected } };
+
+    case 'SET_USER':
+      return { ...state, ui: { ...state.ui, currentUser: action.user } };
+
+    case 'SET_SHOW_USERNAME_PROMPT':
+      return { ...state, ui: { ...state.ui, showUsernamePrompt: action.show } };
+
+    case 'SET_SHOW_SETTINGS_MODAL':
+      return { ...state, ui: { ...state.ui, showSettingsModal: action.show } };
+
+    case 'SET_SHOW_PLAYLIST_MODAL':
+      return { ...state, ui: { ...state.ui, showPlaylistModal: action.show } };
+
+    case 'SET_SPOTIFY_LINK':
+      return { ...state, ui: { ...state.ui, spotifyLink: action.link } };
+
+    case 'SET_AVAILABLE_PLAYLISTS':
+      return { ...state, ui: { ...state.ui, availablePlaylists: action.playlists } };
+
+    case 'SET_PLAYLISTS_LOADING':
+      return { ...state, ui: { ...state.ui, playlistsLoading: action.loading } };
+
+    case 'LOCAL_ANSWER':
+      return {
+        ...state,
+        game: {
+          ...state.game,
+          hasAnswered: true,
+          selectedChoice: action.choiceIndex,
+        }
+      };
+
+    case 'TOGGLE_READY':
+      return {
+        ...state,
+        metadata: { ...state.metadata, isReady: !state.metadata.isReady }
+      };
+
+    case 'RESET_TO_LOBBY':
+      return {
+        ...state,
+        ui: { ...state.ui, isStartingGame: false },
+        game: {
+          ...state.game,
+          phase: 'lobby',
+          currentRound: 0,
+          totalRounds: 0,
+          currentSong: null,
+          choices: [],
+          roundStartTime: 0,
+          roundEndTime: 0,
+          roundDuration: 0,
+          scores: [],
+          myScore: 0,
+          myStreak: 0,
+          hasAnswered: false,
+          selectedChoice: null,
+          roundEndData: null,
+          gameEndData: null,
+        }
+      };
+
+    default:
+      return state;
+  }
 }
 
-export function useRoomState(): RoomState & RoomActions {
+const initialState: RoomState = {
+  metadata: {
+    roomName: "",
+    players: [],
+    selectedPlaylist: null,
+    gameSettings: {
+      rounds: DEFAULT_ROOM_SETTINGS.rounds,
+      timePerRound: DEFAULT_ROOM_SETTINGS.timePerRound / 1000,
+      audioTime: DEFAULT_ROOM_SETTINGS.audioTime / 1000,
+    },
+    isHost: false,
+    isReady: false,
+  },
+  game: {
+    phase: 'lobby',
+    currentRound: 0,
+    totalRounds: 0,
+    currentSong: null,
+    choices: [],
+    roundStartTime: 0,
+    roundEndTime: 0,
+    roundDuration: 0,
+    scores: [],
+    myScore: 0,
+    myStreak: 0,
+    hasAnswered: false,
+    selectedChoice: null,
+    roundEndData: null,
+    gameEndData: null,
+  },
+  ui: {
+    currentUser: null,
+    showUsernamePrompt: true,
+    showSettingsModal: false,
+    showPlaylistModal: false,
+    spotifyLink: "",
+    availablePlaylists: [],
+    playlistsLoading: true,
+    isStartingGame: false,
+    chatMessages: [],
+    isConnected: false,
+  }
+};
+
+export function useRoomState() {
   const navigate = useNavigate();
   const { roomName } = useParams<{ roomName: string }>();
   const effectiveRoomName = roomName || "general";
   const { user, isAuthenticated, isLoading } = useAuth();
 
-  const initialAuth = getInitialAuthState(isLoading, isAuthenticated, user);
-  const [currentUser, setCurrentUser] = useState<{ username: string; userId: string } | null>(initialAuth.currentUser);
-  const [showUsernamePrompt, setShowUsernamePrompt] = useState(initialAuth.showUsernamePrompt);
-  
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
-  const [isReady, setIsReady] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
-  const [spotifyLink, setSpotifyLink] = useState("");
-  const [availablePlaylists, setAvailablePlaylists] = useState<Playlist[]>([]);
-  const [playlistsLoading, setPlaylistsLoading] = useState(true);
-  const [gameSettings, setGameSettings] = useState({
-    rounds: DEFAULT_ROOM_SETTINGS.rounds,
-    timePerRound: DEFAULT_ROOM_SETTINGS.timePerRound / 1000,
-    audioTime: DEFAULT_ROOM_SETTINGS.audioTime / 1000,
+  const [state, dispatch] = useReducer(roomReducer, {
+      ...initialState,
+      metadata: { ...initialState.metadata, roomName: effectiveRoomName }
   });
-  const [gamePhase, setGamePhase] = useState<GamePhase>('lobby');
-  const [currentRound, setCurrentRound] = useState(0);
-  const [totalRounds, setTotalRounds] = useState(0);
-  const [currentSong, setCurrentSong] = useState<{ previewUrl?: string; albumImageUrl?: string } | null>(null);
-  const [choices, setChoices] = useState<SongChoice[]>([]);
-  const [roundStartTime, setRoundStartTime] = useState(0);
-  const [roundEndTime, setRoundEndTime] = useState(0);
-  const [roundDuration, setRoundDuration] = useState(0);
-  const [scores, setScores] = useState<PlayerScore[]>([]);
-  const [myScore, setMyScore] = useState(0);
-  const [myStreak, setMyStreak] = useState(0);
-  const [hasAnswered, setHasAnswered] = useState(false);
-  const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
-  const [roundEndData, setRoundEndData] = useState<{ correctAnswer: SongChoice; scores: PlayerScore[] } | null>(null);
-  const [gameEndData, setGameEndData] = useState<{ finalScores: PlayerScore[] } | null>(null);
-  const [isStartingGame, setIsStartingGame] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatBoxMessage[]>([]);
-  
+
   const fetchedPlaylistsRef = useRef(false);
 
+  // Initialize auth state
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (isAuthenticated && user) {
+      dispatch({ 
+        type: 'SET_USER', 
+        user: { username: user.name?.trim() || "", userId: user.id || "" } 
+      });
+      dispatch({ type: 'SET_SHOW_USERNAME_PROMPT', show: false });
+    } else {
+      const storedUsername = sessionStorage.getItem("chat-username");
+      const storedUserId = sessionStorage.getItem("chat-userId");
+      if (storedUsername) {
+        const userId = storedUserId || `user-${Math.random().toString(36).substr(2, 9)}`;
+        if (!storedUserId) sessionStorage.setItem("chat-userId", userId);
+        dispatch({ type: 'SET_USER', user: { username: storedUsername, userId } });
+        dispatch({ type: 'SET_SHOW_USERNAME_PROMPT', show: false });
+      }
+    }
+  }, [isLoading, isAuthenticated, user]);
+
   const onMessage = useCallback((message: OutgoingMessage) => {
-    console.log('[useRoomState] Received message:', message.type, message);
+    const currentUserId = state.ui.currentUser?.userId || "";
     
     switch (message.type) {
+      case "unified_room_state":
+        dispatch({ type: 'SYNC_UNIFIED_STATE', state: (message as UnifiedRoomStateMessage).state, currentUserId });
+        break;
+
       case "user_joined":
       case "user_left":
-      case "users_updated": {
-        const usersMsg = message as UserJoinedMessage | UserLeftMessage | UsersUpdatedMessage;
-        const users = usersMsg.users || [];
-        setPlayers(users.map(u => ({
-          userId: u.userId,
-          username: u.username,
-          userImage: u.userImage,
-          isReady: u.isReady,
-          isHost: u.isHost,
-        })));
-        
+      case "users_updated":
+        dispatch({ 
+            type: 'UPDATE_PLAYERS', 
+            users: (message as UserJoinedMessage | UserLeftMessage | UsersUpdatedMessage).users || [],
+            currentUserId 
+        });
         if (message.type === "user_joined" || message.type === "user_left") {
-          setChatMessages(prev => [...prev, message as UserJoinedMessage | UserLeftMessage].slice(-200));
+          dispatch({ type: 'CHAT_MESSAGE', message: message as ChatBoxMessage });
         }
         break;
-      }
       
       case "settings_updated":
-        if (message.settings) {
-          setGameSettings({
-            rounds: message.settings.rounds,
-            timePerRound: message.settings.timePerRound / 1000,
-            audioTime: message.settings.audioTime / 1000,
-          });
-        }
+        if (message.settings) dispatch({ type: 'SETTINGS_UPDATED', settings: message.settings });
         break;
         
       case "playlist_updated":
-        if (message.playlist) {
-          setSelectedPlaylist(message.playlist);
-        }
+        if (message.playlist) dispatch({ type: 'PLAYLIST_UPDATED', playlist: message.playlist });
         break;
         
       case "game_started":
-        setIsStartingGame(true);
-        setGameSettings({
-          rounds: message.totalRounds,
-          timePerRound: message.timePerRound / 1000,
-          audioTime: message.audioTime / 1000,
+        dispatch({ 
+            type: 'GAME_STARTED', 
+            totalRounds: message.totalRounds, 
+            timePerRound: message.timePerRound, 
+            audioTime: message.audioTime 
         });
         break;
         
       case "round_started":
-        setGamePhase('playing');
-        setIsStartingGame(false);
-        setCurrentRound(message.round);
-        setTotalRounds(message.totalRounds);
-        setCurrentSong({
-          previewUrl: message.song.previewUrl,
-          albumImageUrl: message.song.albumImageUrl,
+        dispatch({ 
+            type: 'ROUND_STARTED', 
+            round: message.round, 
+            totalRounds: message.totalRounds,
+            song: { previewUrl: message.song.previewUrl, albumImageUrl: message.song.albumImageUrl },
+            choices: message.choices,
+            startTime: message.startTime,
+            endTime: message.endTime,
+            duration: message.duration
         });
-        setChoices(message.choices);
-        setRoundStartTime(message.startTime);
-        setRoundEndTime(message.endTime);
-        setRoundDuration(message.duration);
-        setHasAnswered(false);
-        setSelectedChoice(null);
-        setRoundEndData(null);
-        setGameEndData(null);
         break;
         
       case "round_ended":
-        setRoundEndData({ correctAnswer: message.correctAnswer, scores: message.scores });
-        setScores(message.scores);
-        setGamePhase('roundEnd');
+        dispatch({ type: 'ROUND_ENDED', round: message.round, correctAnswer: message.correctAnswer, scores: message.scores });
         break;
         
       case "game_ended":
-        setGameEndData({ finalScores: message.finalScores });
-        setScores(message.finalScores);
-        setGamePhase('gameEnd');
+        dispatch({ type: 'GAME_ENDED', finalScores: message.finalScores });
         break;
         
       case "answer_result":
-        if (message.isCorrect) {
-          setMyScore(prev => prev + message.points);
-        }
-        setMyStreak(message.streak);
+        dispatch({ type: 'ANSWER_RESULT', isCorrect: message.isCorrect, points: message.points, streak: message.streak });
         break;
         
       case "leaderboard_update":
-        setScores(message.leaderboard);
+        dispatch({ type: 'LEADERBOARD_UPDATE', leaderboard: message.leaderboard });
         break;
-        
-      case "game_state": {
-        const state = message as GameStateMessage;
-        setGamePhase(state.gamePhase);
-        setCurrentRound(state.currentRound);
-        setTotalRounds(state.totalRounds);
-        setScores(state.scores);
-        setMyScore(state.myScore);
-        setMyStreak(state.myStreak);
-        
-        if (state.gamePhase === 'playing') {
-          setCurrentSong(state.currentSong);
-          setChoices(state.choices);
-          setRoundStartTime(state.roundStartTime);
-          setRoundEndTime(state.roundEndTime);
-          setRoundDuration(state.duration);
-          if (state.hasAnswered) {
-            setHasAnswered(true);
-            setSelectedChoice(state.selectedChoice);
-          }
-        }
-        break;
-      }
       
-      case "room_state":
-        if (message.settings) {
-          setGameSettings({
-            rounds: message.settings.rounds,
-            timePerRound: message.settings.timePerRound / 1000,
-            audioTime: message.settings.audioTime / 1000,
-          });
-        }
-        if (message.playlist) {
-          setSelectedPlaylist(message.playlist);
-        }
-        break;
-        
       case "message":
       case "chat_message":
-        setChatMessages(prev => [...prev, message as ChatMessage].slice(-200));
+        dispatch({ type: 'CHAT_MESSAGE', message: message as ChatMessage });
         break;
         
       case "error":
         console.error("Server error:", message.content);
-        setIsStartingGame(false);
         break;
     }
-  }, []);
+  }, [state.ui.currentUser?.userId]);
 
   const { isConnected, send } = useGameSocket({
-    username: currentUser?.username || "",
+    username: state.ui.currentUser?.username || "",
     room: effectiveRoomName,
-    userId: currentUser?.userId || "",
+    userId: state.ui.currentUser?.userId || "",
     userImage: user?.image || undefined,
     onMessage,
   });
+
+  useEffect(() => {
+    dispatch({ type: 'SET_CONNECTED', connected: isConnected });
+  }, [isConnected]);
 
   const handleJoinRoom = useCallback((username: string) => {
     sessionStorage.setItem("chat-username", username);
@@ -288,8 +495,8 @@ export function useRoomState(): RoomState & RoomActions {
       userId = `user-${Math.random().toString(36).substr(2, 9)}`;
       sessionStorage.setItem("chat-userId", userId);
     }
-    setCurrentUser({ username, userId });
-    setShowUsernamePrompt(false);
+    dispatch({ type: 'SET_USER', user: { username, userId } });
+    dispatch({ type: 'SET_SHOW_USERNAME_PROMPT', show: false });
 
     if (roomName !== username) {
       navigate(`/room/${encodeURIComponent(roomName || "general")}`);
@@ -298,18 +505,16 @@ export function useRoomState(): RoomState & RoomActions {
 
   const handleLeaveRoom = useCallback(() => {
     sessionStorage.removeItem("chat-username");
-    setCurrentUser(null);
+    dispatch({ type: 'SET_USER', user: null });
     navigate("/");
   }, [navigate]);
 
   const handleToggleReady = useCallback(() => {
-    const nextReady = !isReady;
-    setIsReady(nextReady);
+    dispatch({ type: 'TOGGLE_READY' });
     send({ type: "ready" });
-  }, [isReady, send]);
+  }, [send]);
 
   const handleStartGame = useCallback(() => {
-    setIsStartingGame(true);
     send({ type: "start_game" });
   }, [send]);
 
@@ -325,23 +530,22 @@ export function useRoomState(): RoomState & RoomActions {
   }, [send]);
 
   const handleSelectPlaylist = useCallback((playlist: Playlist) => {
-    setSelectedPlaylist(playlist);
+    dispatch({ type: 'PLAYLIST_UPDATED', playlist });
     send({
       type: "update_playlist",
       payload: { playlist }
     });
-    setShowPlaylistModal(false);
+    dispatch({ type: 'SET_SHOW_PLAYLIST_MODAL', show: false });
   }, [send]);
 
   const handleAnswer = useCallback((choiceIndex: number) => {
-    if (hasAnswered) return;
-    setSelectedChoice(choiceIndex);
-    setHasAnswered(true);
+    if (state.game.hasAnswered) return;
+    dispatch({ type: 'LOCAL_ANSWER', choiceIndex });
     send({
       type: "answer",
       choiceIndex,
     } as AnswerMessage);
-  }, [hasAnswered, send]);
+  }, [state.game.hasAnswered, send]);
 
   const handleSendMessage = useCallback((content: string) => {
     send({
@@ -354,52 +558,29 @@ export function useRoomState(): RoomState & RoomActions {
     send({ type: "start_game" });
   }, [send]);
 
-  const resetToLobby = useCallback(() => {
-    setGamePhase('lobby');
-    setCurrentRound(0);
-    setTotalRounds(0);
-    setCurrentSong(null);
-    setChoices([]);
-    setRoundStartTime(0);
-    setRoundEndTime(0);
-    setRoundDuration(0);
-    setScores([]);
-    setMyScore(0);
-    setMyStreak(0);
-    setHasAnswered(false);
-    setSelectedChoice(null);
-    setRoundEndData(null);
-    setGameEndData(null);
-    setIsStartingGame(false);
-  }, []);
-
   const handleOpenPlaylistModal = useCallback(() => {
-    if (availablePlaylists.length === 0 && !fetchedPlaylistsRef.current) {
+    if (state.ui.availablePlaylists.length === 0 && !fetchedPlaylistsRef.current) {
       fetchedPlaylistsRef.current = true;
-      setPlaylistsLoading(true);
+      dispatch({ type: 'SET_PLAYLISTS_LOADING', loading: true });
       fetch("/api/playlists")
         .then((res) => res.json())
         .then((data) => {
-          if (data.playlists) {
-            setAvailablePlaylists(data.playlists);
-          }
-          setPlaylistsLoading(false);
+          if (data.playlists) dispatch({ type: 'SET_AVAILABLE_PLAYLISTS', playlists: data.playlists });
+          dispatch({ type: 'SET_PLAYLISTS_LOADING', loading: false });
         })
-        .catch(() => {
-          setPlaylistsLoading(false);
-        });
+        .catch(() => dispatch({ type: 'SET_PLAYLISTS_LOADING', loading: false }));
     }
-    setShowPlaylistModal(true);
-  }, [availablePlaylists.length]);
+    dispatch({ type: 'SET_SHOW_PLAYLIST_MODAL', show: true });
+  }, [state.ui.availablePlaylists.length]);
 
   const handleSpotifyLinkSubmit = useCallback(async () => {
-    if (!spotifyLink.trim()) return;
+    if (!state.ui.spotifyLink.trim()) return;
     
     try {
       const response = await fetch("/api/playlists/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ link: spotifyLink }),
+        body: JSON.stringify({ link: state.ui.spotifyLink }),
       });
       
       const data = await response.json();
@@ -410,71 +591,61 @@ export function useRoomState(): RoomState & RoomActions {
       console.error("Error importing playlist:", error);
     }
     
-    setSpotifyLink("");
-    setShowPlaylistModal(false);
-  }, [spotifyLink, handleSelectPlaylist]);
-
-  const handleCreateBlend = useCallback(() => {
-    console.log("Creating blend from players");
-    setShowPlaylistModal(false);
-  }, []);
-
-  const isHost = useMemo(
-    () => players.find((p) => p.userId === currentUser?.userId)?.isHost,
-    [players, currentUser?.userId]
-  );
+    dispatch({ type: 'SET_SPOTIFY_LINK', link: "" });
+    dispatch({ type: 'SET_SHOW_PLAYLIST_MODAL', show: false });
+  }, [state.ui.spotifyLink, handleSelectPlaylist]);
 
   const { allNonHostPlayersReady, currentWarning } = useMemo(() => {
-    const nonHostPlayers = players.filter((p) => !p.isHost);
+    const nonHostPlayers = state.metadata.players.filter((p) => !p.isHost);
     const hasNonHostPlayers = nonHostPlayers.length > 0;
     const allReady = !hasNonHostPlayers || nonHostPlayers.every((p) => p.isReady);
 
     let warning: string | null = null;
-    if (!selectedPlaylist) {
+    if (!state.metadata.selectedPlaylist) {
       warning = "Please select a playlist to start";
     } else if (!allReady) {
       warning = "Waiting for all players to be ready";
     }
 
     return { allNonHostPlayersReady: allReady, currentWarning: warning };
-  }, [players, selectedPlaylist]);
+  }, [state.metadata.players, state.metadata.selectedPlaylist]);
 
-  const canStartGame = isHost && players.length >= 1 && selectedPlaylist && allNonHostPlayersReady;
+  const canStartGame = state.metadata.isHost && state.metadata.players.length >= 1 && state.metadata.selectedPlaylist && allNonHostPlayersReady;
 
   return {
-    // State
-    currentUser,
-    showUsernamePrompt,
-    players,
-    selectedPlaylist,
-    isReady,
-    showSettingsModal,
-    showPlaylistModal,
-    spotifyLink,
-    gameSettings,
-    isHost,
+    // State (flattened for backward compatibility with components)
+    currentUser: state.ui.currentUser,
+    showUsernamePrompt: state.ui.showUsernamePrompt,
+    players: state.metadata.players,
+    selectedPlaylist: state.metadata.selectedPlaylist,
+    isReady: state.metadata.isReady,
+    showSettingsModal: state.ui.showSettingsModal,
+    showPlaylistModal: state.ui.showPlaylistModal,
+    spotifyLink: state.ui.spotifyLink,
+    gameSettings: state.metadata.gameSettings,
+    isHost: state.metadata.isHost,
     canStartGame,
-    isStartingGame,
+    isStartingGame: state.ui.isStartingGame,
     currentWarning,
-    gamePhase,
-    currentRound,
-    totalRounds,
-    currentSong,
-    choices,
-    roundStartTime,
-    roundEndTime,
-    roundDuration,
-    scores,
-    myScore,
-    myStreak,
-    hasAnswered,
-    selectedChoice,
-    roundEndData,
-    gameEndData,
-    availablePlaylists,
-    playlistsLoading,
-    isConnected,
-    chatMessages,
+    gamePhase: state.game.phase,
+    currentRound: state.game.currentRound,
+    totalRounds: state.game.totalRounds,
+    currentSong: state.game.currentSong,
+    choices: state.game.choices,
+    roundStartTime: state.game.roundStartTime,
+    roundEndTime: state.game.roundEndTime,
+    roundDuration: state.game.roundDuration,
+    scores: state.game.scores,
+    myScore: state.game.myScore,
+    myStreak: state.game.myStreak,
+    hasAnswered: state.game.hasAnswered,
+    selectedChoice: state.game.selectedChoice,
+    roundEndData: state.game.roundEndData,
+    gameEndData: state.game.gameEndData,
+    availablePlaylists: state.ui.availablePlaylists,
+    playlistsLoading: state.ui.playlistsLoading,
+    isConnected: state.ui.isConnected,
+    chatMessages: state.ui.chatMessages,
     // Actions
     handleJoinRoom,
     handleLeaveRoom,
@@ -482,15 +653,15 @@ export function useRoomState(): RoomState & RoomActions {
     handleStartGame,
     handleSelectPlaylist,
     handleSpotifyLinkSubmit,
-    handleCreateBlend,
+    handleCreateBlend: () => console.log("Creating blend..."),
     handleSettingsUpdate,
     handleAnswer,
     handlePlayAgain,
     handleSendMessage,
-    setShowSettingsModal,
-    setShowPlaylistModal,
+    setShowSettingsModal: (show: boolean) => dispatch({ type: 'SET_SHOW_SETTINGS_MODAL', show }),
+    setShowPlaylistModal: (show: boolean) => dispatch({ type: 'SET_SHOW_PLAYLIST_MODAL', show }),
     setShowPlaylistModalWithFetch: handleOpenPlaylistModal,
-    setSpotifyLink,
-    resetToLobby,
+    setSpotifyLink: (link: string) => dispatch({ type: 'SET_SPOTIFY_LINK', link }),
+    resetToLobby: () => dispatch({ type: 'RESET_TO_LOBBY' }),
   };
 }

@@ -73,6 +73,28 @@ export interface PlayerScore {
 // Game phase types
 export type GamePhase = 'lobby' | 'starting' | 'playing' | 'roundEnd' | 'gameEnd';
 
+export interface GameStateSnapshot {
+  phase: GamePhase;
+  currentRound: number;
+  totalRounds: number;
+  songs: Song[];
+  currentSongIndex: number;
+  choices: SongChoice[];
+  scores: Record<string, PlayerScore>;
+  answers: Record<string, { choiceIndex: number; answeredAt: number }>;
+  roundStartTime: number;
+  roundEndTime: number;
+  roundDuration: number;
+}
+
+export interface UnifiedRoomState {
+  room: string;
+  settings: RoomSettings;
+  playlist: Playlist | null;
+  users: UserSession[];
+  game: GameStateSnapshot;
+}
+
 // ============================================================================
 // WebSocket Message Types
 // ============================================================================
@@ -176,18 +198,9 @@ export interface UsersUpdatedMessage extends BaseMessage {
   users: UserSession[];
 }
 
-export interface RoomCreatedMessage extends BaseMessage {
-  type: 'room_created';
-  room: string;
-  settings: RoomSettings;
-  playlist: Playlist | null;
-}
-
-export interface RoomStateMessage extends BaseMessage {
-  type: 'room_state';
-  room: string;
-  settings: RoomSettings;
-  playlist: Playlist | null;
+export interface UnifiedRoomStateMessage extends BaseMessage {
+  type: 'unified_room_state';
+  state: UnifiedRoomState;
 }
 
 export interface SettingsUpdatedMessage extends BaseMessage {
@@ -257,30 +270,12 @@ export interface LeaderboardUpdateMessage extends BaseMessage {
   leaderboard: PlayerScore[];
 }
 
-export interface GameStateMessage extends BaseMessage {
-  type: 'game_state';
-  gamePhase: GamePhase;
-  currentRound: number;
-  totalRounds: number;
-  currentSong: { previewUrl?: string; albumImageUrl?: string };
-  choices: SongChoice[];
-  roundStartTime: number;
-  roundEndTime: number;
-  duration: number;
-  scores: PlayerScore[];
-  myScore: number;
-  myStreak: number;
-  hasAnswered: boolean;
-  selectedChoice: number | null;
-}
-
 export type OutgoingMessage =
   | ErrorMessage
   | UserJoinedMessage
   | UserLeftMessage
   | UsersUpdatedMessage
-  | RoomCreatedMessage
-  | RoomStateMessage
+  | UnifiedRoomStateMessage
   | SettingsUpdatedMessage
   | PlaylistUpdatedMessage
   | GameEventMessage
@@ -290,8 +285,7 @@ export type OutgoingMessage =
   | RoundEndedMessage
   | GameEndedMessage
   | AnswerResultMessage
-  | LeaderboardUpdateMessage
-  | GameStateMessage;
+  | LeaderboardUpdateMessage;
 
 export type WebSocketMessage = IncomingMessage | OutgoingMessage;
 

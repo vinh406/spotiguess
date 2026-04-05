@@ -235,92 +235,9 @@ export class WebSocketHibernationServer extends DurableObject {
       this.roomManager.addPlayerToScores(userId, trimmedUsername, userImage || undefined);
     }
 
-    // Send room state to joining player
-    const roomStateMessage = MessageBuilders.roomState(
-      room,
-      this.roomManager.getRoomSettings(),
-      this.roomManager.getRoomPlaylist()
-    );
-    sendToSocket(ws, roomStateMessage);
-
-    // If game is in progress, send full game state
-    if (gamePhase === 'playing') {
-      const roundState = this.roomManager.getCurrentRoundState();
-      if (roundState) {
-        const playerScore = this.roomManager.getScoreForUser(userId);
-        const existingAnswer = roundState.answers.get(userId);
-        
-        const gameStateMessage = MessageBuilders.gameState(
-          'playing',
-          roundState.round,
-          roundState.totalRounds,
-          {
-            previewUrl: roundState.song.previewUrl,
-            albumImageUrl: roundState.song.albumImageUrl,
-          },
-          roundState.choices,
-          roundState.roundStartTime,
-          roundState.roundEndTime,
-          roundState.roundDuration,
-          this.roomManager.getScores(),
-          playerScore?.score || 0,
-          playerScore?.streak || 0,
-          !!existingAnswer,
-          existingAnswer?.choiceIndex ?? null
-        );
-        sendToSocket(ws, gameStateMessage);
-      }
-    } else if (gamePhase === 'roundEnd') {
-      // If round just ended, send round end state
-      const playerScore = this.roomManager.getScoreForUser(userId);
-      const scores = this.roomManager.getScores();
-      
-      // Send game state indicating round end
-      const gameStateMessage = MessageBuilders.gameState(
-        'roundEnd',
-        this.roomManager.getCurrentRound(),
-        this.roomManager['totalRounds'],
-        {},
-        [],
-        0,
-        0,
-        0,
-        scores,
-        playerScore?.score || 0,
-        playerScore?.streak || 0,
-        false,
-        null
-      );
-      sendToSocket(ws, gameStateMessage);
-      
-      // Also send leaderboard
-      const leaderboardMessage = MessageBuilders.leaderboardUpdate(scores);
-      sendToSocket(ws, leaderboardMessage);
-    } else if (gamePhase === 'gameEnd') {
-      // If game has ended, send game end state
-      const playerScore = this.roomManager.getScoreForUser(userId);
-      const scores = this.roomManager.getScores();
-      
-      const gameStateMessage = MessageBuilders.gameState(
-        'gameEnd',
-        this.roomManager.getCurrentRound(),
-        this.roomManager['totalRounds'],
-        {},
-        [],
-        0,
-        0,
-        0,
-        scores,
-        playerScore?.score || 0,
-        playerScore?.streak || 0,
-        false,
-        null
-      );
-      sendToSocket(ws, gameStateMessage);
-      
-      const gameEndedMessage = MessageBuilders.gameEnded(scores);
-      sendToSocket(ws, gameEndedMessage);
-    }
+    // Send unified room state to joining player
+    const unifiedState = this.roomManager.getUnifiedRoomState(room);
+    sendToSocket(ws, MessageBuilders.unifiedRoomState(unifiedState));
   }
 
   private async handleLeave(ws: WebSocket): Promise<void> {
@@ -445,7 +362,7 @@ export class WebSocketHibernationServer extends DurableObject {
     const { playlist } = data.payload || {};
     if (!playlist) return;
 
-    this.roomManager.setRoomPlaylist(playlist, session.userId);
+    this.roomManager.setRoomPlaylist(playlist);
 
     // Broadcast playlist update
     const playlistMessage = MessageBuilders.playlistUpdated(playlist);
@@ -487,7 +404,7 @@ export class WebSocketHibernationServer extends DurableObject {
       return;
     }
 
-    this.roomManager.initGame(songs, settings.rounds);
+    this.roomManager.initGame(songs, settings.rounds, session.room);
     this.roomManager.setLastFmApiKey(this.spotifyEnv.LAST_FM_API_KEY);
 
     const gameStartedMessage = MessageBuilders.gameStarted(settings.rounds, settings.timePerRound, settings.audioTime);

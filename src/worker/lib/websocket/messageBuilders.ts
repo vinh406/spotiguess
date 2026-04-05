@@ -6,7 +6,6 @@ import type {
   UserJoinedMessage,
   UserLeftMessage,
   UsersUpdatedMessage,
-  RoomStateMessage,
   SettingsUpdatedMessage,
   PlaylistUpdatedMessage,
   GameEventMessage,
@@ -19,8 +18,9 @@ import type {
   LeaderboardUpdateMessage,
   SongChoice,
   PlayerScore,
-  GamePhase,
-  OutgoingMessage,
+  UnifiedRoomState,
+  UnifiedRoomStateMessage,
+  GameStateSnapshot,
 } from "../../../shared/types";
 
 export const MessageBuilders = {
@@ -28,6 +28,24 @@ export const MessageBuilders = {
     return {
       type: "error",
       content,
+      timestamp: Date.now(),
+    };
+  },
+
+  unifiedRoomState(state: UnifiedRoomState): UnifiedRoomStateMessage {
+    // Convert Map to Record for JSON serialization if they are Maps in the engine but Records in the type
+    const serializedGame = {
+        ...state.game,
+        scores: Object.fromEntries(state.game.scores instanceof Map ? state.game.scores : Object.entries(state.game.scores)),
+        answers: Object.fromEntries(state.game.answers instanceof Map ? state.game.answers : Object.entries(state.game.answers)),
+    };
+
+    return {
+      type: "unified_room_state",
+      state: {
+          ...state,
+          game: serializedGame as unknown as GameStateSnapshot,
+      },
       timestamp: Date.now(),
     };
   },
@@ -70,20 +88,6 @@ export const MessageBuilders = {
     return {
       type: "users_updated",
       users,
-      timestamp: Date.now(),
-    };
-  },
-
-  roomState(
-    room: string,
-    settings: RoomSettings,
-    playlist: Playlist | null
-  ): RoomStateMessage {
-    return {
-      type: "room_state",
-      room,
-      settings,
-      playlist,
       timestamp: Date.now(),
     };
   },
@@ -220,40 +224,6 @@ export const MessageBuilders = {
     return {
       type: "leaderboard_update",
       leaderboard,
-      timestamp: Date.now(),
-    };
-  },
-
-  gameState(
-    gamePhase: GamePhase,
-    currentRound: number,
-    totalRounds: number,
-    currentSong: { previewUrl?: string; albumImageUrl?: string },
-    choices: SongChoice[],
-    roundStartTime: number,
-    roundEndTime: number,
-    duration: number,
-    scores: PlayerScore[],
-    myScore: number,
-    myStreak: number,
-    hasAnswered: boolean,
-    selectedChoice: number | null
-  ): OutgoingMessage {
-    return {
-      type: "game_state",
-      gamePhase,
-      currentRound,
-      totalRounds,
-      currentSong,
-      choices,
-      roundStartTime,
-      roundEndTime,
-      duration,
-      scores,
-      myScore,
-      myStreak,
-      hasAnswered,
-      selectedChoice,
       timestamp: Date.now(),
     };
   },
