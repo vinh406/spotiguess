@@ -199,3 +199,4 @@ dist
 !.dev.vars.example
 
 /backend
+/test-results
