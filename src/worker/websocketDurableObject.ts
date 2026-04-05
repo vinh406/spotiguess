@@ -82,8 +82,6 @@ export class WebSocketHibernationServer extends DurableObject {
 
   async webSocketClose(
     ws: WebSocket,
-    _code: number,
-    _reason: string,
   ): Promise<void> {
     const session = this.roomManager.getUserSession(ws);
     if (session) {
@@ -262,6 +260,8 @@ export class WebSocketHibernationServer extends DurableObject {
           },
           roundState.choices,
           roundState.roundStartTime,
+          roundState.roundEndTime,
+          roundState.roundDuration,
           this.roomManager.getScores(),
           playerScore?.score || 0,
           playerScore?.streak || 0,
@@ -282,6 +282,8 @@ export class WebSocketHibernationServer extends DurableObject {
         this.roomManager['totalRounds'],
         {},
         [],
+        0,
+        0,
         0,
         scores,
         playerScore?.score || 0,
@@ -305,6 +307,8 @@ export class WebSocketHibernationServer extends DurableObject {
         this.roomManager['totalRounds'],
         {},
         [],
+        0,
+        0,
         0,
         scores,
         playerScore?.score || 0,
@@ -471,11 +475,10 @@ export class WebSocketHibernationServer extends DurableObject {
 
     const settings = this.roomManager.getRoomSettings();
     const roomPlaylist = this.roomManager.getRoomPlaylist();
-    const playlistUserId = this.roomManager.getRoomPlaylistUserId();
 
     let songs: import("../shared/types").Song[] = [];
-    if (roomPlaylist?.id && playlistUserId) {
-      songs = await getPlaylistTracks(roomPlaylist.id, playlistUserId, this.spotifyEnv);
+    if (roomPlaylist?.id) {
+      songs = await getPlaylistTracks(roomPlaylist.id);
     }
 
     if (songs.length < settings.rounds) {
@@ -508,7 +511,9 @@ export class WebSocketHibernationServer extends DurableObject {
       roundData.totalRounds,
       songData,
       roundData.choices,
-      Date.now()
+      roundData.startTime,
+      roundData.endTime,
+      roundData.duration
     );
     broadcastToRoom(this.roomManager.getSessions(), room, roundStartedMessage);
   }

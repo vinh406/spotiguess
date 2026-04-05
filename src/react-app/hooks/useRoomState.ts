@@ -1,8 +1,11 @@
 import { useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
-import type { Player, Playlist, UserSession, SongChoice, PlayerScore, GamePhase } from "../../shared/types";
+import type { Player, Playlist, SongChoice, PlayerScore, GamePhase, OutgoingMessage, ChatMessage, GameStateMessage, UserJoinedMessage, UserLeftMessage, UsersUpdatedMessage, AnswerMessage } from "../../shared/types";
 import { DEFAULT_ROOM_SETTINGS } from "../../shared/constants";
+import { useGameSocket } from "./useGameSocket";
+
+export type ChatBoxMessage = ChatMessage | UserJoinedMessage | UserLeftMessage;
 
 export interface RoomState {
   currentUser: { username: string; userId: string } | null;
@@ -13,9 +16,6 @@ export interface RoomState {
   showSettingsModal: boolean;
   showPlaylistModal: boolean;
   spotifyLink: string;
-  readyTrigger: number;
-  settingsTrigger: { rounds: number; timePerRound: number; audioTime: number } | null;
-  playlistTrigger: Playlist | null;
   gameSettings: { rounds: number; timePerRound: number; audioTime: number };
   isHost: boolean | undefined;
   canStartGame: boolean | null | undefined;
@@ -27,17 +27,19 @@ export interface RoomState {
   currentSong: { previewUrl?: string; albumImageUrl?: string } | null;
   choices: SongChoice[];
   roundStartTime: number;
+  roundEndTime: number;
+  roundDuration: number;
   scores: PlayerScore[];
   myScore: number;
   myStreak: number;
   hasAnswered: boolean;
   selectedChoice: number | null;
-  startGameTrigger: number;
-  answerTrigger: { choiceIndex: number; timestamp: number } | null;
   roundEndData: { correctAnswer: SongChoice; scores: PlayerScore[] } | null;
   gameEndData: { finalScores: PlayerScore[] } | null;
   availablePlaylists: Playlist[];
   playlistsLoading: boolean;
+  isConnected: boolean;
+  chatMessages: ChatBoxMessage[];
 }
 
 export interface RoomActions {
@@ -45,59 +47,32 @@ export interface RoomActions {
   handleLeaveRoom: () => void;
   handleToggleReady: () => void;
   handleStartGame: () => void;
-  resetStartingGame: () => void;
   handleSelectPlaylist: (playlist: Playlist) => void;
   handleSpotifyLinkSubmit: () => void;
   handleCreateBlend: () => void;
   handleSettingsUpdate: (settings: { rounds: number; timePerRound: number; audioTime: number }) => void;
-  handlePlaylistUpdate: (playlist: { id: string; name: string; description?: string; trackCount: number; imageUrl?: string }) => void;
-  handleUsersUpdate: (users: UserSession[]) => Player[];
+  handleAnswer: (choiceIndex: number) => void;
+  handlePlayAgain: () => void;
+  handleSendMessage: (content: string) => void;
   setShowSettingsModal: (show: boolean) => void;
   setShowPlaylistModal: (show: boolean) => void;
   setShowPlaylistModalWithFetch: () => void;
   setSpotifyLink: (link: string) => void;
-  setGameSettings: React.Dispatch<React.SetStateAction<{ rounds: number; timePerRound: number; audioTime: number }>>;
-  setSettingsTrigger: (trigger: { rounds: number; timePerRound: number; audioTime: number } | null) => void;
-  setGamePhase: (phase: GamePhase) => void;
-  setRoundData: (round: number, totalRounds: number, song: { previewUrl?: string; albumImageUrl?: string }, choices: SongChoice[], startTime: number) => void;
-  setScores: (scores: PlayerScore[]) => void;
   resetToLobby: () => void;
-  setStartGameTrigger: React.Dispatch<React.SetStateAction<number>>;
-  setAnswerTrigger: React.Dispatch<React.SetStateAction<{ choiceIndex: number; timestamp: number } | null>>;
-  setMyScore: React.Dispatch<React.SetStateAction<number>>;
-  setMyStreak: React.Dispatch<React.SetStateAction<number>>;
-  setHasAnswered: React.Dispatch<React.SetStateAction<boolean>>;
-  setSelectedChoice: React.Dispatch<React.SetStateAction<number | null>>;
-  setCurrentRound: React.Dispatch<React.SetStateAction<number>>;
-  setTotalRounds: React.Dispatch<React.SetStateAction<number>>;
-  handleAnswer: (choiceIndex: number) => void;
-  handleRoundEnded: (round: number, correctAnswer: SongChoice, scores: PlayerScore[]) => void;
-  handleGameEnded: (finalScores: PlayerScore[]) => void;
-  handlePlayAgain: () => void;
 }
 
-// Helper function to compute initial auth state based on auth and sessionStorage
 function getInitialAuthState(isLoading: boolean, isAuthenticated: boolean, user: { name?: string; id?: string; image?: string | null } | null): {
   currentUser: { username: string; userId: string } | null;
   showUsernamePrompt: boolean;
-  players: Player[];
 } {
   if (isLoading) {
-    return { currentUser: null, showUsernamePrompt: false, players: [] };
+    return { currentUser: null, showUsernamePrompt: false };
   }
 
   if (isAuthenticated && user) {
-    const displayName = user.name?.trim() || "";
     return {
-      currentUser: { username: displayName, userId: user.id || "" },
+      currentUser: { username: user.name?.trim() || "", userId: user.id || "" },
       showUsernamePrompt: false,
-      players: [{
-        userId: user.id || "",
-        username: displayName,
-        userImage: user.image || null,
-        isReady: false,
-        isHost: false,
-      }],
     };
   }
 
@@ -111,31 +86,28 @@ function getInitialAuthState(isLoading: boolean, isAuthenticated: boolean, user:
     return {
       currentUser: { username: storedUsername, userId },
       showUsernamePrompt: false,
-      players: [{ userId, username: storedUsername, userImage: null, isReady: false, isHost: false }],
     };
   }
 
-  return { currentUser: null, showUsernamePrompt: true, players: [] };
+  return { currentUser: null, showUsernamePrompt: true };
 }
 
 export function useRoomState(): RoomState & RoomActions {
   const navigate = useNavigate();
   const { roomName } = useParams<{ roomName: string }>();
+  const effectiveRoomName = roomName || "general";
   const { user, isAuthenticated, isLoading } = useAuth();
 
-  const initialAuthState = getInitialAuthState(isLoading, isAuthenticated, user);
-
-  const [currentUser, setCurrentUser] = useState<{ username: string; userId: string } | null>(initialAuthState.currentUser);
-  const [showUsernamePrompt, setShowUsernamePrompt] = useState(initialAuthState.showUsernamePrompt);
-  const [players, setPlayers] = useState<Player[]>(initialAuthState.players);
+  const initialAuth = getInitialAuthState(isLoading, isAuthenticated, user);
+  const [currentUser, setCurrentUser] = useState<{ username: string; userId: string } | null>(initialAuth.currentUser);
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(initialAuth.showUsernamePrompt);
+  
+  const [players, setPlayers] = useState<Player[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [spotifyLink, setSpotifyLink] = useState("");
-  const [readyTrigger, setReadyTrigger] = useState(0);
-  const [settingsTrigger, setSettingsTrigger] = useState<{ rounds: number; timePerRound: number; audioTime: number } | null>(null);
-  const [playlistTrigger, setPlaylistTrigger] = useState<Playlist | null>(null);
   const [availablePlaylists, setAvailablePlaylists] = useState<Playlist[]>([]);
   const [playlistsLoading, setPlaylistsLoading] = useState(true);
   const [gameSettings, setGameSettings] = useState({
@@ -149,17 +121,257 @@ export function useRoomState(): RoomState & RoomActions {
   const [currentSong, setCurrentSong] = useState<{ previewUrl?: string; albumImageUrl?: string } | null>(null);
   const [choices, setChoices] = useState<SongChoice[]>([]);
   const [roundStartTime, setRoundStartTime] = useState(0);
+  const [roundEndTime, setRoundEndTime] = useState(0);
+  const [roundDuration, setRoundDuration] = useState(0);
   const [scores, setScores] = useState<PlayerScore[]>([]);
   const [myScore, setMyScore] = useState(0);
   const [myStreak, setMyStreak] = useState(0);
   const [hasAnswered, setHasAnswered] = useState(false);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
-  const [startGameTrigger, setStartGameTrigger] = useState(0);
-  const [answerTrigger, setAnswerTrigger] = useState<{ choiceIndex: number; timestamp: number } | null>(null);
   const [roundEndData, setRoundEndData] = useState<{ correctAnswer: SongChoice; scores: PlayerScore[] } | null>(null);
   const [gameEndData, setGameEndData] = useState<{ finalScores: PlayerScore[] } | null>(null);
   const [isStartingGame, setIsStartingGame] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatBoxMessage[]>([]);
+  
   const fetchedPlaylistsRef = useRef(false);
+
+  const onMessage = useCallback((message: OutgoingMessage) => {
+    console.log('[useRoomState] Received message:', message.type, message);
+    
+    switch (message.type) {
+      case "user_joined":
+      case "user_left":
+      case "users_updated": {
+        const usersMsg = message as UserJoinedMessage | UserLeftMessage | UsersUpdatedMessage;
+        const users = usersMsg.users || [];
+        setPlayers(users.map(u => ({
+          userId: u.userId,
+          username: u.username,
+          userImage: u.userImage,
+          isReady: u.isReady,
+          isHost: u.isHost,
+        })));
+        
+        if (message.type === "user_joined" || message.type === "user_left") {
+          setChatMessages(prev => [...prev, message as UserJoinedMessage | UserLeftMessage].slice(-200));
+        }
+        break;
+      }
+      
+      case "settings_updated":
+        if (message.settings) {
+          setGameSettings({
+            rounds: message.settings.rounds,
+            timePerRound: message.settings.timePerRound / 1000,
+            audioTime: message.settings.audioTime / 1000,
+          });
+        }
+        break;
+        
+      case "playlist_updated":
+        if (message.playlist) {
+          setSelectedPlaylist(message.playlist);
+        }
+        break;
+        
+      case "game_started":
+        setIsStartingGame(true);
+        setGameSettings({
+          rounds: message.totalRounds,
+          timePerRound: message.timePerRound / 1000,
+          audioTime: message.audioTime / 1000,
+        });
+        break;
+        
+      case "round_started":
+        setGamePhase('playing');
+        setIsStartingGame(false);
+        setCurrentRound(message.round);
+        setTotalRounds(message.totalRounds);
+        setCurrentSong({
+          previewUrl: message.song.previewUrl,
+          albumImageUrl: message.song.albumImageUrl,
+        });
+        setChoices(message.choices);
+        setRoundStartTime(message.startTime);
+        setRoundEndTime(message.endTime);
+        setRoundDuration(message.duration);
+        setHasAnswered(false);
+        setSelectedChoice(null);
+        setRoundEndData(null);
+        setGameEndData(null);
+        break;
+        
+      case "round_ended":
+        setRoundEndData({ correctAnswer: message.correctAnswer, scores: message.scores });
+        setScores(message.scores);
+        setGamePhase('roundEnd');
+        break;
+        
+      case "game_ended":
+        setGameEndData({ finalScores: message.finalScores });
+        setScores(message.finalScores);
+        setGamePhase('gameEnd');
+        break;
+        
+      case "answer_result":
+        if (message.isCorrect) {
+          setMyScore(prev => prev + message.points);
+        }
+        setMyStreak(message.streak);
+        break;
+        
+      case "leaderboard_update":
+        setScores(message.leaderboard);
+        break;
+        
+      case "game_state": {
+        const state = message as GameStateMessage;
+        setGamePhase(state.gamePhase);
+        setCurrentRound(state.currentRound);
+        setTotalRounds(state.totalRounds);
+        setScores(state.scores);
+        setMyScore(state.myScore);
+        setMyStreak(state.myStreak);
+        
+        if (state.gamePhase === 'playing') {
+          setCurrentSong(state.currentSong);
+          setChoices(state.choices);
+          setRoundStartTime(state.roundStartTime);
+          setRoundEndTime(state.roundEndTime);
+          setRoundDuration(state.duration);
+          if (state.hasAnswered) {
+            setHasAnswered(true);
+            setSelectedChoice(state.selectedChoice);
+          }
+        }
+        break;
+      }
+      
+      case "room_state":
+        if (message.settings) {
+          setGameSettings({
+            rounds: message.settings.rounds,
+            timePerRound: message.settings.timePerRound / 1000,
+            audioTime: message.settings.audioTime / 1000,
+          });
+        }
+        if (message.playlist) {
+          setSelectedPlaylist(message.playlist);
+        }
+        break;
+        
+      case "message":
+      case "chat_message":
+        setChatMessages(prev => [...prev, message as ChatMessage].slice(-200));
+        break;
+        
+      case "error":
+        console.error("Server error:", message.content);
+        setIsStartingGame(false);
+        break;
+    }
+  }, []);
+
+  const { isConnected, send } = useGameSocket({
+    username: currentUser?.username || "",
+    room: effectiveRoomName,
+    userId: currentUser?.userId || "",
+    userImage: user?.image || undefined,
+    onMessage,
+  });
+
+  const handleJoinRoom = useCallback((username: string) => {
+    sessionStorage.setItem("chat-username", username);
+    let userId = sessionStorage.getItem("chat-userId");
+    if (!userId) {
+      userId = `user-${Math.random().toString(36).substr(2, 9)}`;
+      sessionStorage.setItem("chat-userId", userId);
+    }
+    setCurrentUser({ username, userId });
+    setShowUsernamePrompt(false);
+
+    if (roomName !== username) {
+      navigate(`/room/${encodeURIComponent(roomName || "general")}`);
+    }
+  }, [navigate, roomName]);
+
+  const handleLeaveRoom = useCallback(() => {
+    sessionStorage.removeItem("chat-username");
+    setCurrentUser(null);
+    navigate("/");
+  }, [navigate]);
+
+  const handleToggleReady = useCallback(() => {
+    const nextReady = !isReady;
+    setIsReady(nextReady);
+    send({ type: "ready" });
+  }, [isReady, send]);
+
+  const handleStartGame = useCallback(() => {
+    setIsStartingGame(true);
+    send({ type: "start_game" });
+  }, [send]);
+
+  const handleSettingsUpdate = useCallback((settings: { rounds: number; timePerRound: number; audioTime: number }) => {
+    send({
+      type: "update_settings",
+      payload: {
+        rounds: settings.rounds,
+        timePerRound: settings.timePerRound * 1000,
+        audioTime: settings.audioTime * 1000,
+      }
+    });
+  }, [send]);
+
+  const handleSelectPlaylist = useCallback((playlist: Playlist) => {
+    setSelectedPlaylist(playlist);
+    send({
+      type: "update_playlist",
+      payload: { playlist }
+    });
+    setShowPlaylistModal(false);
+  }, [send]);
+
+  const handleAnswer = useCallback((choiceIndex: number) => {
+    if (hasAnswered) return;
+    setSelectedChoice(choiceIndex);
+    setHasAnswered(true);
+    send({
+      type: "answer",
+      choiceIndex,
+    } as AnswerMessage);
+  }, [hasAnswered, send]);
+
+  const handleSendMessage = useCallback((content: string) => {
+    send({
+      type: "message",
+      content,
+    } as ChatMessage);
+  }, [send]);
+
+  const handlePlayAgain = useCallback(() => {
+    send({ type: "start_game" });
+  }, [send]);
+
+  const resetToLobby = useCallback(() => {
+    setGamePhase('lobby');
+    setCurrentRound(0);
+    setTotalRounds(0);
+    setCurrentSong(null);
+    setChoices([]);
+    setRoundStartTime(0);
+    setRoundEndTime(0);
+    setRoundDuration(0);
+    setScores([]);
+    setMyScore(0);
+    setMyStreak(0);
+    setHasAnswered(false);
+    setSelectedChoice(null);
+    setRoundEndData(null);
+    setGameEndData(null);
+    setIsStartingGame(false);
+  }, []);
 
   const handleOpenPlaylistModal = useCallback(() => {
     if (availablePlaylists.length === 0 && !fetchedPlaylistsRef.current) {
@@ -178,103 +390,7 @@ export function useRoomState(): RoomState & RoomActions {
         });
     }
     setShowPlaylistModal(true);
-  }, [availablePlaylists.length, setShowPlaylistModal]);
-
-  const handleJoinRoom = useCallback((username: string) => {
-    sessionStorage.setItem("chat-username", username);
-    let userId = sessionStorage.getItem("chat-userId");
-    if (!userId) {
-      userId = `user-${Math.random().toString(36).substr(2, 9)}`;
-      sessionStorage.setItem("chat-userId", userId);
-    }
-    setCurrentUser({ username, userId });
-    setShowUsernamePrompt(false);
-    // Don't set isHost here - wait for server response
-    setPlayers([{ userId, username, userImage: null, isReady: false, isHost: false }]);
-
-    if (roomName !== username) {
-      navigate(`/room/${encodeURIComponent(roomName || "general")}`);
-    }
-  }, [navigate, roomName]);
-
-  const handleLeaveRoom = useCallback(() => {
-    sessionStorage.removeItem("chat-username");
-    setCurrentUser(null);
-    navigate("/");
-  }, [navigate]);
-
-  const handleToggleReady = useCallback(() => {
-    setIsReady((prev) => !prev);
-    setReadyTrigger((prev) => prev + 1);
-  }, []);
-
-  const handleSettingsUpdate = useCallback((settings: { rounds: number; timePerRound: number; audioTime: number }) => {
-    console.log('[RoomPage] Received settings update from server:', settings);
-    setGameSettings({
-      rounds: settings.rounds,
-      timePerRound: settings.timePerRound / 1000,
-      audioTime: settings.audioTime / 1000,
-    });
-  }, []);
-
-  const handlePlaylistUpdate = useCallback((playlist: { id: string; name: string; description?: string; trackCount: number; imageUrl?: string }) => {
-    console.log('[RoomPage] Received playlist update from server:', playlist);
-    setSelectedPlaylist({
-      id: playlist.id,
-      name: playlist.name,
-      description: playlist.description || '',
-      trackCount: playlist.trackCount,
-      imageUrl: playlist.imageUrl || '',
-    });
-  }, []);
-
-  const handleStartGame = useCallback(() => {
-    setIsStartingGame(true);
-    setStartGameTrigger(prev => prev + 1);
-  }, []);
-
-  const resetStartingGame = useCallback(() => {
-    setIsStartingGame(false);
-  }, []);
-
-  const setRoundData = useCallback((round: number, totalRounds: number, song: { previewUrl?: string; albumImageUrl?: string }, choices: SongChoice[], startTime: number) => {
-    setIsStartingGame(false);
-    setCurrentRound(round);
-    setTotalRounds(totalRounds);
-    setCurrentSong(song);
-    setChoices(choices);
-    setRoundStartTime(startTime);
-    setHasAnswered(false);
-    setSelectedChoice(null);
-    setRoundEndData(null);
-    setGameEndData(null);
-  }, []);
-
-  const resetToLobby = useCallback(() => {
-    setGamePhase('lobby');
-    setCurrentRound(0);
-    setTotalRounds(0);
-    setCurrentSong(null);
-    setChoices([]);
-    setRoundStartTime(0);
-    setScores([]);
-    setMyScore(0);
-    setMyStreak(0);
-    setHasAnswered(false);
-    setSelectedChoice(null);
-    setRoundEndData(null);
-    setGameEndData(null);
-    setIsStartingGame(false);
-  }, []);
-
-  const handleSelectPlaylist = useCallback((playlist: Playlist) => {
-    setSelectedPlaylist(playlist);
-    const isHost = players.find((p) => p.userId === currentUser?.userId)?.isHost;
-    if (isHost) {
-      setPlaylistTrigger(playlist);
-    }
-    setShowPlaylistModal(false);
-  }, [players, currentUser]);
+  }, [availablePlaylists.length]);
 
   const handleSpotifyLinkSubmit = useCallback(async () => {
     if (!spotifyLink.trim()) return;
@@ -282,25 +398,13 @@ export function useRoomState(): RoomState & RoomActions {
     try {
       const response = await fetch("/api/playlists/import", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ link: spotifyLink }),
       });
       
       const data = await response.json();
-      
-      if (!response.ok) {
-        console.error("Failed to import playlist:", data.error);
-        return;
-      }
-      
-      if (data.playlist) {
-        setSelectedPlaylist(data.playlist);
-        const isHost = players.find((p) => p.userId === currentUser?.userId)?.isHost;
-        if (isHost) {
-          setPlaylistTrigger(data.playlist);
-        }
+      if (response.ok && data.playlist) {
+        handleSelectPlaylist(data.playlist);
       }
     } catch (error) {
       console.error("Error importing playlist:", error);
@@ -308,51 +412,13 @@ export function useRoomState(): RoomState & RoomActions {
     
     setSpotifyLink("");
     setShowPlaylistModal(false);
-  }, [spotifyLink, players, currentUser]);
+  }, [spotifyLink, handleSelectPlaylist]);
 
   const handleCreateBlend = useCallback(() => {
     console.log("Creating blend from players");
     setShowPlaylistModal(false);
   }, []);
 
-  const handleUsersUpdate = useCallback((users: UserSession[]): Player[] => {
-    const newPlayers = users.map((u) => ({
-      userId: u.userId,
-      username: u.username,
-      userImage: u.userImage,
-      isReady: u.isReady,
-      isHost: u.isHost,
-    }));
-    setPlayers(newPlayers);
-    return newPlayers;
-  }, []);
-
-  const handleAnswer = useCallback((choiceIndex: number) => {
-    if (hasAnswered) return;
-    setSelectedChoice(choiceIndex);
-    setHasAnswered(true);
-    setAnswerTrigger({ choiceIndex, timestamp: Date.now() });
-  }, [hasAnswered]);
-
-  const handleRoundEnded = useCallback((_round: number, correctAnswer: SongChoice, scores: PlayerScore[]) => {
-    setRoundEndData({ correctAnswer, scores });
-    setScores(scores);
-    setGamePhase('roundEnd');
-  }, []);
-
-  const handleGameEnded = useCallback((finalScores: PlayerScore[]) => {
-    setGameEndData({ finalScores });
-    setScores(finalScores);
-    setGamePhase('gameEnd');
-  }, []);
-
-  const handlePlayAgain = useCallback(() => {
-    setStartGameTrigger(prev => prev + 1);
-    // Don't set gamePhase here — wait for server's round_started message
-    // to drive the phase change via onRoundStarted callback
-  }, []);
-
-  // Computed values
   const isHost = useMemo(
     () => players.find((p) => p.userId === currentUser?.userId)?.isHost,
     [players, currentUser?.userId]
@@ -385,9 +451,6 @@ export function useRoomState(): RoomState & RoomActions {
     showSettingsModal,
     showPlaylistModal,
     spotifyLink,
-    readyTrigger,
-    settingsTrigger,
-    playlistTrigger,
     gameSettings,
     isHost,
     canStartGame,
@@ -399,50 +462,35 @@ export function useRoomState(): RoomState & RoomActions {
     currentSong,
     choices,
     roundStartTime,
+    roundEndTime,
+    roundDuration,
     scores,
     myScore,
     myStreak,
     hasAnswered,
     selectedChoice,
-    startGameTrigger,
-    answerTrigger,
     roundEndData,
     gameEndData,
     availablePlaylists,
     playlistsLoading,
+    isConnected,
+    chatMessages,
     // Actions
     handleJoinRoom,
     handleLeaveRoom,
     handleToggleReady,
     handleStartGame,
-    resetStartingGame,
     handleSelectPlaylist,
     handleSpotifyLinkSubmit,
     handleCreateBlend,
     handleSettingsUpdate,
-    handlePlaylistUpdate,
-    handleUsersUpdate,
+    handleAnswer,
+    handlePlayAgain,
+    handleSendMessage,
     setShowSettingsModal,
     setShowPlaylistModal,
     setShowPlaylistModalWithFetch: handleOpenPlaylistModal,
     setSpotifyLink,
-    setGameSettings,
-    setSettingsTrigger,
-    setGamePhase,
-    setRoundData,
-    setScores,
     resetToLobby,
-    setStartGameTrigger,
-    setAnswerTrigger,
-    setMyScore,
-    setMyStreak,
-    setHasAnswered,
-    setSelectedChoice,
-    setCurrentRound,
-    setTotalRounds,
-    handleAnswer,
-    handleRoundEnded,
-    handleGameEnded,
-    handlePlayAgain,
   };
 }

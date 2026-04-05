@@ -151,7 +151,7 @@ export type IncomingMessage =
 
 export interface ErrorMessage extends BaseMessage {
   type: 'error';
-  message: string;
+  content: string;
 }
 
 export interface UserJoinedMessage extends BaseMessage {
@@ -229,6 +229,8 @@ export interface RoundStartedMessage extends BaseMessage {
   song: Song;
   choices: SongChoice[];
   startTime: number;
+  endTime: number;
+  duration: number;
 }
 
 export interface RoundEndedMessage extends BaseMessage {
@@ -255,6 +257,23 @@ export interface LeaderboardUpdateMessage extends BaseMessage {
   leaderboard: PlayerScore[];
 }
 
+export interface GameStateMessage extends BaseMessage {
+  type: 'game_state';
+  gamePhase: GamePhase;
+  currentRound: number;
+  totalRounds: number;
+  currentSong: { previewUrl?: string; albumImageUrl?: string };
+  choices: SongChoice[];
+  roundStartTime: number;
+  roundEndTime: number;
+  duration: number;
+  scores: PlayerScore[];
+  myScore: number;
+  myStreak: number;
+  hasAnswered: boolean;
+  selectedChoice: number | null;
+}
+
 export type OutgoingMessage =
   | ErrorMessage
   | UserJoinedMessage
@@ -271,7 +290,8 @@ export type OutgoingMessage =
   | RoundEndedMessage
   | GameEndedMessage
   | AnswerResultMessage
-  | LeaderboardUpdateMessage;
+  | LeaderboardUpdateMessage
+  | GameStateMessage;
 
 export type WebSocketMessage = IncomingMessage | OutgoingMessage;
 

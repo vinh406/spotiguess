@@ -79,8 +79,6 @@ export async function getCurrentUserPlaylists(
 
 export async function getPlaylistTracks(
   playlistId: string,
-  _userId: string,
-  _env: Env,
 ): Promise<Song[]> {
   try {
     const spotifyUrlInfoModule = spotifyUrlInfo(fetch);

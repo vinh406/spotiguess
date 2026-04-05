@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router";
 import { useRoomState } from "../hooks/useRoomState";
-import { Chat } from "../components/Chat";
+import { ChatBox } from "../components/room/ChatBox";
 import { RoomLobby } from "../components/room/RoomLobby";
 import { SettingsModal } from "../components/room/SettingsModal";
 import { PlaylistModal } from "../components/room/PlaylistModal";
@@ -13,7 +13,7 @@ import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 
 export default function RoomPage() {
-  const { user, isLoading } = useAuth();
+  const { isLoading: authLoading } = useAuth();
   const { roomName } = useParams<{ roomName: string }>();
   const effectiveRoomName = roomName || "general";
   const [chatOpen, setChatOpen] = useState(true);
@@ -27,9 +27,6 @@ export default function RoomPage() {
     showSettingsModal,
     showPlaylistModal,
     spotifyLink,
-    readyTrigger,
-    settingsTrigger,
-    playlistTrigger,
     gameSettings,
     isHost,
     canStartGame,
@@ -41,52 +38,39 @@ export default function RoomPage() {
     currentSong,
     choices,
     roundStartTime,
+    roundEndTime,
+    roundDuration,
     myScore,
     myStreak,
     hasAnswered,
     selectedChoice,
-    answerTrigger,
-    startGameTrigger,
     roundEndData,
     gameEndData,
     availablePlaylists,
     playlistsLoading,
+    isConnected,
+    chatMessages,
     handleJoinRoom,
     handleLeaveRoom,
     handleToggleReady,
     handleStartGame,
-    resetStartingGame,
     handleSelectPlaylist,
     handleSpotifyLinkSubmit,
     handleCreateBlend,
     handleSettingsUpdate,
-    handlePlaylistUpdate,
-    handleUsersUpdate,
+    handleAnswer,
+    handlePlayAgain,
+    handleSendMessage,
     setShowSettingsModal,
     setShowPlaylistModal,
     setShowPlaylistModalWithFetch,
     setSpotifyLink,
-    setGameSettings,
-    setSettingsTrigger,
-    handleAnswer,
-    handleRoundEnded,
-    handleGameEnded,
-    handlePlayAgain,
     resetToLobby,
-    setRoundData,
-    setGamePhase,
-    setMyScore,
-    setMyStreak,
-    setScores,
-    setHasAnswered,
-    setSelectedChoice,
-    setCurrentRound,
-    setTotalRounds,
   } = useRoomState();
 
   const isGameActive = gamePhase === 'playing' || gamePhase === 'roundEnd' || gamePhase === 'gameEnd';
 
-  if (isLoading) {
+  if (authLoading) {
     return (
       <div className="h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
         <div className="text-center">
@@ -126,7 +110,6 @@ export default function RoomPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Chat toggle button */}
             <button
               onClick={() => setChatOpen(!chatOpen)}
               className={`relative p-2 rounded-lg transition-all border ${
@@ -160,7 +143,6 @@ export default function RoomPage() {
         {/* Game/Lobby Area */}
         <main className="flex-1 min-w-0 overflow-hidden">
           {isGameActive ? (
-            /* Active Game - Full Width */
             <div className="h-full">
               {gamePhase === 'playing' && currentSong ? (
                 <GameView
@@ -169,7 +151,8 @@ export default function RoomPage() {
                   song={currentSong}
                   choices={choices}
                   startTime={roundStartTime}
-                  timePerRound={gameSettings.timePerRound * 1000}
+                  endTime={roundEndTime}
+                  duration={roundDuration}
                   audioTime={gameSettings.audioTime * 1000}
                   hasAnswered={hasAnswered}
                   selectedChoice={selectedChoice}
@@ -184,9 +167,7 @@ export default function RoomPage() {
                   correctAnswer={roundEndData.correctAnswer}
                   scores={roundEndData.scores}
                   myUserId={currentUser.userId}
-                  onNextRound={() => {
-                    setGamePhase('roundEnd');
-                  }}
+                  onNextRound={() => {}}
                 />
               ) : gamePhase === 'gameEnd' && gameEndData ? (
                 <GameEndView
@@ -198,7 +179,6 @@ export default function RoomPage() {
               ) : null}
             </div>
           ) : (
-            /* Lobby - With side padding */
             <div className="h-full overflow-y-auto p-3 sm:p-4 lg:p-6">
               <div className="max-w-3xl mx-auto">
                 <RoomLobby
@@ -229,75 +209,12 @@ export default function RoomPage() {
           }`}
         >
           <div className="w-72 sm:w-80 h-full">
-            <Chat
-              username={currentUser.username}
-              room={effectiveRoomName}
+            <ChatBox
+              messages={chatMessages}
+              onSendMessage={handleSendMessage}
               userId={currentUser.userId}
-              userImage={user?.image || undefined}
-              readyTrigger={readyTrigger}
-              settingsTrigger={settingsTrigger}
-              playlistTrigger={playlistTrigger}
-              startGameTrigger={isHost ? startGameTrigger : undefined}
-              answerTrigger={answerTrigger}
-              onSettingsUpdate={handleSettingsUpdate}
-              onPlaylistUpdate={handlePlaylistUpdate}
-              onUsersUpdate={handleUsersUpdate}
-              onStartGameError={resetStartingGame}
-              onGameStarted={(totalRounds, timePerRound, audioTime) => {
-                setGameSettings({ rounds: totalRounds, timePerRound: timePerRound / 1000, audioTime: audioTime / 1000 });
-              }}
-              onRoundStarted={(round, totalRounds, song, choices, startTime) => {
-                setGamePhase('playing');
-                setRoundData(round, totalRounds, song, choices, startTime);
-              }}
-              onRoundEnded={(round, correctAnswer, scores) => {
-                handleRoundEnded(round, correctAnswer, scores);
-              }}
-              onGameEnded={(finalScores) => {
-                handleGameEnded(finalScores);
-              }}
-              onAnswerResult={(isCorrect, points, streak) => {
-                if (isCorrect) {
-                  setMyScore(prev => prev + points);
-                }
-                setMyStreak(streak);
-              }}
-              onLeaderboardUpdate={(leaderboard) => {
-                setScores(leaderboard);
-              }}
-              onGameStateReceived={(gameState) => {
-                setGamePhase(gameState.gamePhase);
-                
-                if (gameState.gamePhase === 'playing') {
-                  setRoundData(
-                    gameState.currentRound,
-                    gameState.totalRounds,
-                    gameState.currentSong,
-                    gameState.choices,
-                    gameState.roundStartTime
-                  );
-                  setScores(gameState.scores);
-                  setMyScore(gameState.myScore);
-                  setMyStreak(gameState.myStreak);
-                  
-                  if (gameState.hasAnswered) {
-                    setHasAnswered(true);
-                    setSelectedChoice(gameState.selectedChoice);
-                  }
-                } else if (gameState.gamePhase === 'roundEnd') {
-                  setCurrentRound(gameState.currentRound);
-                  setTotalRounds(gameState.totalRounds);
-                  setScores(gameState.scores);
-                  setMyScore(gameState.myScore);
-                  setMyStreak(gameState.myStreak);
-                } else if (gameState.gamePhase === 'gameEnd') {
-                  setCurrentRound(gameState.currentRound);
-                  setTotalRounds(gameState.totalRounds);
-                  setScores(gameState.scores);
-                  setMyScore(gameState.myScore);
-                  setMyStreak(gameState.myStreak);
-                }
-              }}
+              isConnected={isConnected}
+              usersCount={players.length}
             />
           </div>
         </aside>
@@ -311,8 +228,7 @@ export default function RoomPage() {
           audioTime={gameSettings.audioTime}
           isHost={isHost ?? false}
           onSave={(settings) => {
-            setGameSettings(settings);
-            setSettingsTrigger(settings);
+            handleSettingsUpdate(settings);
             setShowSettingsModal(false);
           }}
           onClose={() => setShowSettingsModal(false)}

@@ -20,13 +20,14 @@ import type {
   SongChoice,
   PlayerScore,
   GamePhase,
+  OutgoingMessage,
 } from "../../../shared/types";
 
 export const MessageBuilders = {
-  error(message: string): ErrorMessage {
+  error(content: string): ErrorMessage {
     return {
       type: "error",
-      message,
+      content,
       timestamp: Date.now(),
     };
   },
@@ -158,7 +159,9 @@ export const MessageBuilders = {
     totalRounds: number,
     song: { previewUrl?: string; albumImageUrl?: string },
     choices: SongChoice[],
-    startTime: number
+    startTime: number,
+    endTime: number,
+    duration: number
   ): RoundStartedMessage {
     return {
       type: "round_started",
@@ -175,6 +178,8 @@ export const MessageBuilders = {
       },
       choices,
       startTime,
+      endTime,
+      duration,
       timestamp: Date.now(),
     };
   },
@@ -226,12 +231,14 @@ export const MessageBuilders = {
     currentSong: { previewUrl?: string; albumImageUrl?: string },
     choices: SongChoice[],
     roundStartTime: number,
+    roundEndTime: number,
+    duration: number,
     scores: PlayerScore[],
     myScore: number,
     myStreak: number,
     hasAnswered: boolean,
     selectedChoice: number | null
-  ): any {
+  ): OutgoingMessage {
     return {
       type: "game_state",
       gamePhase,
@@ -240,6 +247,8 @@ export const MessageBuilders = {
       currentSong,
       choices,
       roundStartTime,
+      roundEndTime,
+      duration,
       scores,
       myScore,
       myStreak,

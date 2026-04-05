@@ -21,7 +21,8 @@ interface GameViewProps {
   song: { previewUrl?: string; albumImageUrl?: string };
   choices: SongChoice[];
   startTime: number;
-  timePerRound: number;
+  endTime: number;
+  duration: number; // in milliseconds
   audioTime: number; // in milliseconds
   hasAnswered: boolean;
   selectedChoice: number | null;
@@ -35,8 +36,8 @@ export function GameView({
   totalRounds,
   song,
   choices,
-  startTime,
-  timePerRound,
+  endTime,
+  duration,
   audioTime,
   hasAnswered,
   selectedChoice,
@@ -44,7 +45,6 @@ export function GameView({
   myStreak,
   onAnswer,
 }: GameViewProps) {
-  const endTime = startTime + timePerRound;
   const [volume, setVolume] = useState(getInitialVolume);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -72,7 +72,7 @@ export function GameView({
     return () => {
       if (stopAudioTimeout) clearTimeout(stopAudioTimeout);
     };
-  }, [song.previewUrl, audioTime]);
+  }, [song.previewUrl, audioTime, volume]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -140,7 +140,7 @@ export function GameView({
           </div>
         </div>
         <div className="px-3 sm:px-4 pb-2">
-          <CountdownTimer endTime={endTime} timePerRound={timePerRound} onTimeUp={handleTimeUp} />
+          <CountdownTimer endTime={endTime} timePerRound={duration} onTimeUp={handleTimeUp} />
         </div>
       </div>
 

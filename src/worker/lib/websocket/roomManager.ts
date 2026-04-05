@@ -25,6 +25,8 @@ export class RoomManager {
   private scores: Map<string, PlayerScore> = new Map();
   private answers: Map<string, { choiceIndex: number; answeredAt: number }> = new Map();
   private roundStartTime: number = 0;
+  private roundEndTime: number = 0;
+  private roundDuration: number = 0;
   private roundTimer: ReturnType<typeof setTimeout> | null = null;
   private similarTracksCache: Map<string, LastFMSimilarTrack[]> = new Map();
   private lastFmApiKey: string | null = null;
@@ -198,7 +200,7 @@ export class RoomManager {
     return this.currentRound;
   }
 
-  async startRound(endRoundCallback: () => void): Promise<{ song: Song; choices: SongChoice[]; round: number; totalRounds: number }> {
+  async startRound(endRoundCallback: () => void): Promise<{ song: Song; choices: SongChoice[]; round: number; totalRounds: number; startTime: number; endTime: number; duration: number }> {
     this.gamePhase = 'playing';
     const song = this.songs[this.currentSongIndex]!;
     
@@ -220,27 +222,33 @@ export class RoomManager {
     }
     
     this.choices = choices;
+    this.roundDuration = this.roomSettings.timePerRound;
     this.roundStartTime = Date.now();
+    this.roundEndTime = this.roundStartTime + this.roundDuration;
     this.answers = new Map();
 
     if (this.roundTimer) clearTimeout(this.roundTimer);
-    this.roundTimer = setTimeout(endRoundCallback, this.roomSettings.timePerRound);
+    this.roundTimer = setTimeout(endRoundCallback, this.roundDuration);
 
     return {
       song,
       choices,
       round: this.currentRound,
       totalRounds: this.totalRounds,
+      startTime: this.roundStartTime,
+      endTime: this.roundEndTime,
+      duration: this.roundDuration,
     };
   }
 
   checkAndEndRoundEarly(room: string, endRoundCallback: () => void): boolean {
     if (this.allPlayersAnswered(room)) {
       const timeElapsed = Date.now() - this.roundStartTime;
-      const remainingTime = this.roomSettings.timePerRound - timeElapsed;
+      const remainingTime = this.roundDuration - timeElapsed;
 
       if (remainingTime > SCORING.EARLY_ROUND_END_DELAY) {
         if (this.roundTimer) clearTimeout(this.roundTimer);
+        this.roundEndTime = Date.now() + SCORING.EARLY_ROUND_END_DELAY;
         this.roundTimer = setTimeout(endRoundCallback, SCORING.EARLY_ROUND_END_DELAY);
         return true;
       }
@@ -337,6 +345,8 @@ export class RoomManager {
     song: Song;
     choices: SongChoice[];
     roundStartTime: number;
+    roundEndTime: number;
+    roundDuration: number;
     answers: Map<string, { choiceIndex: number; answeredAt: number }>;
   } | null {
     const song = this.songs[this.currentSongIndex];
@@ -350,6 +360,8 @@ export class RoomManager {
       song,
       choices: this.choices,
       roundStartTime: this.roundStartTime,
+      roundEndTime: this.roundEndTime,
+      roundDuration: this.roundDuration,
       answers: this.answers,
     };
   }
