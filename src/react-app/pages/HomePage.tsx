@@ -115,6 +115,7 @@ export default function HomePage() {
             disabled={!roomCode.trim()}
           >
             <Input
+              variant="blue"
               type="text"
               placeholder="Enter room code"
               value={roomCode}
