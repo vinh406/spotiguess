@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import Header from "../components/Header";
 import ActionCard from "../components/common/ActionCard";
 import StatCard from "../components/common/StatCard";
+import { Input } from "../components/ui/Input";
 import { generateRoomCode } from "../../shared/constants";
 
 export default function HomePage() {
@@ -121,13 +122,13 @@ export default function HomePage() {
             isLoading={isJoining}
             disabled={!roomCode.trim()}
           >
-            <input
+            <Input
               type="text"
               placeholder="Enter room code"
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              className="w-full px-6 py-4 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all mb-4"
               maxLength={8}
+              className="mb-4"
             />
           </ActionCard>
         </div>

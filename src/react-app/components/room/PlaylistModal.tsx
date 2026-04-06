@@ -1,5 +1,7 @@
 import type { Playlist } from "../../../shared/types";
 import { Modal } from "../common/Modal";
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 
 interface PlaylistModalProps {
   selectedPlaylist: Playlist | null;
@@ -47,20 +49,19 @@ export function PlaylistModal({
           Import from Spotify
         </label>
         <div className="flex gap-3">
-          <input
+          <Input
             type="text"
             value={spotifyLink}
             onChange={(e) => onSpotifyLinkChange(e.target.value)}
             placeholder="Paste Spotify playlist link..."
-            className="flex-1 px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all"
+            className="flex-1"
           />
-          <button
+          <Button
             onClick={onSubmitSpotifyLink}
             disabled={!spotifyLink.trim()}
-            className="px-6 py-3 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-xl hover:from-green-500 hover:to-green-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Import
-          </button>
+          </Button>
         </div>
       </div>
 

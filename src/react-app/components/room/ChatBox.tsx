@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { Input } from "../ui/Input";
 
 interface Message {
   type: string;
@@ -203,14 +204,15 @@ export function ChatBox({ messages, onSendMessage, userId, isConnected, usersCou
       {/* Input */}
       <div className="p-4 border-t border-gray-700/50">
         <div className="flex gap-2">
-          <input
+          <Input
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             disabled={!isConnected}
-            className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            size="sm"
+            className="flex-1"
           />
           <button
             onClick={handleSend}

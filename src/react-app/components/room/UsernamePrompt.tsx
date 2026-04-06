@@ -1,3 +1,6 @@
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
+
 interface UsernamePromptProps {
   roomName: string;
   onSubmit: (username: string) => void;
@@ -44,32 +47,31 @@ export function UsernamePrompt({ roomName, onSubmit, onBack }: UsernamePromptPro
             >
               Username
             </label>
-            <input
+            <Input
               type="text"
               id="username"
               name="username"
               placeholder="Enter your username..."
               maxLength={20}
-              className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all"
               required
               autoFocus
             />
           </div>
 
           <div className="flex gap-3">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={onBack}
-              className="flex-1 px-4 py-3 bg-gray-700/50 text-gray-300 rounded-xl hover:bg-gray-600/50 transition-all border border-gray-600"
+              className="flex-1"
             >
               Back to Home
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-xl hover:from-green-500 hover:to-green-700 transition-all font-semibold"
+              className="flex-1"
             >
               Join #{roomName}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
