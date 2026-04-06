@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal } from "../common/Modal";
+import { Button } from "../ui";
 import { ROUND_OPTIONS, TIME_PER_ROUND_OPTIONS, AUDIO_TIME_OPTIONS } from "../../../shared/constants";
 
 interface SettingsModalProps {
@@ -31,12 +32,13 @@ export function SettingsModal({
       title="Game Settings"
       onClose={onClose}
       footer={
-        <button
+        <Button
           onClick={() => onSave({ rounds: localRounds, timePerRound: localTimePerRound, audioTime: effectiveAudioTime })}
-          className="w-full py-3 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-xl hover:from-green-500 hover:to-green-700 transition-all font-semibold"
+          className="w-full py-3"
+          size="lg"
         >
           Save
-        </button>
+        </Button>
       }
     >
       <div className="space-y-6">
@@ -46,18 +48,15 @@ export function SettingsModal({
           </label>
           <div className="grid grid-cols-4 gap-3">
             {ROUND_OPTIONS.map((r) => (
-              <button
+              <Button
                 key={r}
+                variant={localRounds === r ? "primary" : "secondary"}
                 onClick={() => isHost && setLocalRounds(r)}
                 disabled={!isHost}
-                className={`py-3 rounded-xl font-medium transition-all ${
-                  localRounds === r
-                    ? "bg-green-500 text-white"
-                    : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600"
-                } ${!isHost ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`py-3 ${!isHost ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {r}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -68,8 +67,9 @@ export function SettingsModal({
           </label>
           <div className="grid grid-cols-5 gap-3">
             {TIME_PER_ROUND_OPTIONS.map((time) => (
-              <button
+              <Button
                 key={time}
+                variant={localTimePerRound === time ? "primary" : "secondary"}
                 onClick={() => {
                     if (isHost) {
                         setLocalTimePerRound(time);
@@ -79,14 +79,10 @@ export function SettingsModal({
                     }
                 }}
                 disabled={!isHost}
-                className={`py-3 rounded-xl font-medium transition-all ${
-                  localTimePerRound === time
-                    ? "bg-green-500 text-white"
-                    : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600"
-                } ${!isHost ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`py-3 ${!isHost ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {time}s
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -97,18 +93,15 @@ export function SettingsModal({
           </label>
           <div className="grid grid-cols-5 gap-3">
             {AUDIO_TIME_OPTIONS.map((time) => (
-              <button
+              <Button
                 key={time}
+                variant={localAudioTime === time ? "primary" : "secondary"}
                 onClick={() => isHost && setLocalAudioTime(time)}
                 disabled={!isHost || time > localTimePerRound}
-                className={`py-3 rounded-xl font-medium transition-all ${
-                  localAudioTime === time
-                    ? "bg-green-500 text-white"
-                    : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600"
-                } ${!isHost || time > localTimePerRound ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`py-3 ${!isHost || time > localTimePerRound ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {time}s
-              </button>
+              </Button>
             ))}
           </div>
         </div>

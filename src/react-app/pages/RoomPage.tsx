@@ -11,6 +11,7 @@ import { RoundEndView } from "../components/game/RoundEndView";
 import { GameEndView } from "../components/game/GameEndView";
 import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "../components/common/LoadingSpinner";
+import { Button } from "../components/ui";
 
 export default function RoomPage() {
   const { isLoading: authLoading } = useAuth();
@@ -109,7 +110,8 @@ export default function RoomPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              size="sm"
               onClick={() => setChatOpen(!chatOpen)}
               className={`relative p-2 rounded-lg transition-all border ${
                 chatOpen
@@ -125,14 +127,15 @@ export default function RoomPage() {
               {!chatOpen && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               )}
-            </button>
+            </Button>
 
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleLeaveRoom}
-              className="px-3 py-1.5 bg-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-600/50 transition-all border border-gray-600 text-sm"
             >
               Leave
-            </button>
+            </Button>
           </div>
         </div>
       </header>

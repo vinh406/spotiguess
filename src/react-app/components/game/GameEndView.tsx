@@ -1,4 +1,5 @@
 import type { PlayerScore } from "../../../shared/types";
+import { Button } from "../ui";
 
 interface GameEndViewProps {
   finalScores: PlayerScore[];
@@ -120,18 +121,21 @@ export function GameEndView({
 
       {/* Action Buttons */}
       <div className="shrink-0 px-3 sm:px-4 py-3 border-t border-gray-700/50 space-y-2">
-        <button
+        <Button
           onClick={onPlayAgain}
-          className="w-full py-2.5 bg-gradient-to-r from-green-400 to-green-600 text-white font-semibold rounded-xl hover:from-green-500 hover:to-green-700 transition-all text-sm"
+          className="w-full py-2.5 text-sm"
+          size="md"
         >
           Play Again
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
           onClick={onBackToLobby}
-          className="w-full py-2.5 bg-gray-700/50 text-gray-300 font-semibold rounded-xl hover:bg-gray-600/50 transition-all border border-gray-600 text-sm"
+          className="w-full py-2.5 text-sm"
+          size="md"
         >
           Back to Lobby
-        </button>
+        </Button>
       </div>
     </div>
   );

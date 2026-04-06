@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { SongChoice } from "../../../shared/types";
 import { CountdownTimer } from "./CountdownTimer";
-import { Slider } from "../ui/Slider";
+import { Slider, Button } from "../ui";
 
 const STORAGE_KEY = 'spotiguess-volume';
 
@@ -193,11 +193,12 @@ export function GameView({
           {choices.map((choice) => {
             const isSelected = selectedChoice === choice.index;
             return (
-              <button
+              <Button
+                variant="ghost"
                 key={choice.index}
                 onClick={() => handleChoice(choice.index)}
                 disabled={hasAnswered}
-                className={`w-full px-3 py-2.5 sm:py-3 rounded-xl text-left transition-all ${
+                className={`w-full px-3 py-2.5 sm:py-3 rounded-xl text-left ${
                   hasAnswered
                     ? isSelected
                       ? "bg-green-500/30 border-2 border-green-500"
@@ -226,7 +227,7 @@ export function GameView({
                     </p>
                   </div>
                 </div>
-              </button>
+              </Button>
             );
           })}
         </div>

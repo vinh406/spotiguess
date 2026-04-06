@@ -1,7 +1,6 @@
 import type { Playlist } from "../../../shared/types";
 import { Modal } from "../common/Modal";
-import { Input } from "../ui/Input";
-import { Button } from "../ui/Button";
+import { Input, Button } from "../ui";
 
 interface PlaylistModalProps {
   selectedPlaylist: Playlist | null;
@@ -35,12 +34,14 @@ export function PlaylistModal({
       maxWidth="lg"
       scrollable
       footer={
-        <button
+        <Button
+          variant="secondary"
           onClick={onClose}
-          className="w-full py-3 bg-gray-700/50 text-gray-300 rounded-xl hover:bg-gray-600/50 transition-all font-medium border border-gray-600"
+          className="w-full py-3"
+          size="lg"
         >
           Cancel
-        </button>
+        </Button>
       }
     >
       {/* Spotify Link Input */}
@@ -66,9 +67,10 @@ export function PlaylistModal({
       </div>
 
       {/* Create Blend Button */}
-      <button
+      <Button
         onClick={onCreateBlend}
         className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all font-medium mb-6"
+        size="lg"
       >
         <svg
           className="w-5 h-5"
@@ -84,7 +86,7 @@ export function PlaylistModal({
           />
         </svg>
         Create Blend from Players
-      </button>
+      </Button>
 
       {/* Divider */}
       <div className="flex items-center gap-4 mb-6">
@@ -117,7 +119,8 @@ export function PlaylistModal({
             </p>
           ) : (
             availablePlaylists.map((playlist) => (
-              <button
+              <Button
+                variant="ghost"
                 key={playlist.id}
                 onClick={() => onSelectPlaylist(playlist)}
                 className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all text-left ${
@@ -167,7 +170,7 @@ export function PlaylistModal({
                     </svg>
                   </div>
                 )}
-              </button>
+              </Button>
             ))
           )}
         </div>

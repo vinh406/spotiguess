@@ -1,53 +1,52 @@
 import { ReactNode } from "react";
 import LoadingSpinner from "./LoadingSpinner";
+import { Button } from "../ui";
 
 interface ActionCardProps {
   icon: ReactNode;
   title: string;
   description: string;
-  gradientFrom: string;
-  gradientTo: string;
-  hoverFrom: string;
-  hoverTo: string;
-  borderColor: string;
-  children?: ReactNode;
   buttonText: string;
   onClick: () => void;
+  variant?: "primary" | "blue";
   isLoading?: boolean;
   disabled?: boolean;
+  children?: ReactNode;
 }
 
 export default function ActionCard({
   icon,
   title,
   description,
-  gradientFrom,
-  gradientTo,
-  hoverFrom,
-  hoverTo,
-  borderColor,
-  children,
   buttonText,
   onClick,
+  variant = "primary",
   isLoading = false,
   disabled = false,
+  children,
 }: ActionCardProps) {
   return (
     <div
-      className={`bg-gray-800/50 backdrop-blur-sm rounded-3xl p-8 border border-gray-700/50 hover:${borderColor} transition-all duration-300`}
+      className={`bg-gray-800/50 backdrop-blur-sm rounded-3xl p-8 border border-gray-700/50 transition-all duration-300 ${variant === "blue" ? "hover:border-blue-500/50" : "hover:border-green-500/50"}`}
     >
       <div
-        className={`w-16 h-16 bg-gradient-to-br ${gradientFrom} ${gradientTo} rounded-2xl flex items-center justify-center mb-6`}
+        className={`w-16 h-16 ${
+          variant === "blue"
+            ? "bg-gradient-to-br from-blue-400 to-blue-600"
+            : "bg-gradient-to-br from-green-400 to-green-600"
+        } rounded-2xl flex items-center justify-center mb-6`}
       >
         {icon}
       </div>
       <h2 className="text-2xl font-bold text-white mb-3">{title}</h2>
       <p className="text-gray-400 mb-6">{description}</p>
       {children}
-      <button
+      <Button
+        variant={variant}
         onClick={onClick}
         disabled={isLoading || disabled}
-        className={`w-full bg-gradient-to-r ${gradientFrom} ${gradientTo} text-white py-4 px-6 rounded-xl font-semibold text-lg hover:${hoverFrom} hover:${hoverTo} transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed`}
+        className="w-full py-4 px-6 rounded-xl font-semibold text-lg"
+        size="lg"
       >
         {isLoading ? (
           <span className="flex items-center justify-center gap-2">
@@ -57,7 +56,7 @@ export default function ActionCard({
         ) : (
           buttonText
         )}
-      </button>
+      </Button>
     </div>
   );
 }

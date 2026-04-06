@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Input } from "../ui/Input";
+import { Input, Button } from "../ui";
 
 interface Message {
   type: string;
@@ -214,10 +214,11 @@ export function ChatBox({ messages, onSendMessage, userId, isConnected, usersCou
             size="sm"
             className="flex-1"
           />
-          <button
+          <Button
             onClick={handleSend}
             disabled={!inputMessage.trim() || !isConnected}
-            className="px-4 py-2 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-xl hover:from-green-500 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            size="sm"
+            className="p-2"
           >
             <svg
               className="w-5 h-5"
@@ -232,7 +233,7 @@ export function ChatBox({ messages, onSendMessage, userId, isConnected, usersCou
                 d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
               />
             </svg>
-          </button>
+          </Button>
         </div>
       </div>
     </div>

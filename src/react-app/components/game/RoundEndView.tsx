@@ -1,4 +1,5 @@
 import type { SongChoice, PlayerScore } from "../../../shared/types";
+import { Button } from "../ui";
 
 interface RoundEndViewProps {
   round: number;
@@ -136,12 +137,13 @@ export function RoundEndView({
 
       {/* Next Round Button */}
       <div className="shrink-0 px-3 sm:px-4 py-3 border-t border-gray-700/50">
-        <button
+        <Button
           onClick={onNextRound}
-          className="w-full py-2.5 bg-gradient-to-r from-green-400 to-green-600 text-white font-semibold rounded-xl hover:from-green-500 hover:to-green-700 transition-all text-sm"
+          className="w-full py-2.5 text-sm"
+          size="md"
         >
           {round < totalRounds ? "Next Round" : "See Final Results"}
-        </button>
+        </Button>
       </div>
     </div>
   );

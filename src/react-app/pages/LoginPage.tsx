@@ -1,6 +1,7 @@
 import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import FeatureItem from "../components/common/FeatureItem";
+import { Button } from "../components/ui";
 
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
@@ -37,10 +38,11 @@ export default function LoginPage() {
           </p>
 
           {/* Spotify Login Button */}
-          <button
+          <Button
             onClick={handleSpotifyLogin}
             disabled={isLoading}
-            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-3"
+            size="lg"
           >
             {isLoading ? (
               <LoadingSpinner size="md" />
@@ -50,7 +52,7 @@ export default function LoginPage() {
               </svg>
             )}
             {isLoading ? "Signing in..." : "Continue with Spotify"}
-          </button>
+          </Button>
 
           {/* Divider */}
           <div className="flex items-center my-8">

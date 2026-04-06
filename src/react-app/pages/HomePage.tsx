@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import Header from "../components/Header";
 import ActionCard from "../components/common/ActionCard";
 import StatCard from "../components/common/StatCard";
-import { Input } from "../components/ui/Input";
+import { Input, Button } from "../components/ui";
 import { generateRoomCode } from "../../shared/constants";
 
 export default function HomePage() {
@@ -57,14 +57,15 @@ export default function HomePage() {
               />
             )}
             <span className="text-gray-300 font-medium hidden md:block">{user.name}</span>
-            <button
+            <Button
+              variant="ghost"
               onClick={handleLogout}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="p-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-            </button>
+            </Button>
           </div>
         )}
       </Header>
@@ -94,17 +95,13 @@ export default function HomePage() {
             }
             title="Create a Room"
             description="Start a new game and invite your friends with a room code. You'll be the host!"
-            gradientFrom="from-green-400"
-            gradientTo="to-green-600"
-            hoverFrom="hover:from-green-600"
-            hoverTo="hover:to-emerald-700"
-            borderColor="border-green-500/50"
             buttonText="Create Room"
             onClick={handleCreateRoom}
           />
 
           {/* Join Room Card */}
           <ActionCard
+            variant="blue"
             icon={
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -112,11 +109,6 @@ export default function HomePage() {
             }
             title="Join a Room"
             description="Have a room code? Enter it below to join your friend's game!"
-            gradientFrom="from-blue-400"
-            gradientTo="to-blue-600"
-            hoverFrom="hover:from-blue-600"
-            hoverTo="hover:to-blue-700"
-            borderColor="border-blue-500/50"
             buttonText="Join Room"
             onClick={handleJoinRoom}
             isLoading={isJoining}
