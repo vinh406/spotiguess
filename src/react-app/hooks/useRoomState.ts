@@ -17,6 +17,8 @@ import type {
   UserSession,
   RoomSettings,
   UnifiedRoomStateMessage,
+  GameEndedMessage,
+  VoteUpdateMessage,
 } from "../../shared/types";
 import { DEFAULT_ROOM_SETTINGS } from "../../shared/constants";
 import { useGameSocket } from "./useGameSocket";
@@ -47,7 +49,9 @@ interface RoomState {
     hasAnswered: boolean;
     selectedChoice: number | null;
     roundEndData: { correctAnswer: SongChoice; scores: PlayerScore[] } | null;
-    gameEndData: { finalScores: PlayerScore[] } | null;
+    gameEndData: { finalScores: PlayerScore[]; voteEndsAt: number } | null;
+    votes: Record<string, boolean>;
+    voteEndsAt: number | null;
   };
   ui: {
     currentUser: { username: string; userId: string } | null;
@@ -81,7 +85,8 @@ type RoomAction =
       duration: number;
     }
   | { type: "ROUND_ENDED"; round: number; correctAnswer: SongChoice; scores: PlayerScore[] }
-  | { type: "GAME_ENDED"; finalScores: PlayerScore[] }
+  | { type: "GAME_ENDED"; finalScores: PlayerScore[]; voteEndsAt: number }
+  | { type: "VOTE_UPDATE"; votes: Record<string, boolean>; voteEndsAt: number }
   | { type: "ANSWER_RESULT"; isCorrect: boolean; points: number; streak: number }
   | { type: "LEADERBOARD_UPDATE"; leaderboard: PlayerScore[] }
   | { type: "SET_CONNECTED"; connected: boolean }
@@ -146,6 +151,8 @@ function roomReducer(state: RoomState, action: RoomAction): RoomState {
           myStreak: myScoreObj?.streak ?? 0,
           hasAnswered: !!myAnswer,
           selectedChoice: myAnswer?.choiceIndex ?? null,
+          votes: unified.game.votes || {},
+          voteEndsAt: unified.game.voteEndsAt,
         },
       };
     }
@@ -212,6 +219,18 @@ function roomReducer(state: RoomState, action: RoomAction): RoomState {
             audioTime: action.audioTime / 1000,
           },
         },
+        game: {
+          ...state.game,
+          currentRound: 0,
+          totalRounds: action.totalRounds,
+          scores: [],
+          myScore: 0,
+          myStreak: 0,
+          roundEndData: null,
+          gameEndData: null,
+          votes: {},
+          voteEndsAt: null,
+        },
       };
 
     case "ROUND_STARTED":
@@ -252,8 +271,20 @@ function roomReducer(state: RoomState, action: RoomAction): RoomState {
         game: {
           ...state.game,
           phase: "gameEnd",
-          gameEndData: { finalScores: action.finalScores },
+          gameEndData: { finalScores: action.finalScores, voteEndsAt: action.voteEndsAt },
           scores: action.finalScores,
+          voteEndsAt: action.voteEndsAt,
+          votes: {},
+        },
+      };
+
+    case "VOTE_UPDATE":
+      return {
+        ...state,
+        game: {
+          ...state.game,
+          votes: action.votes,
+          voteEndsAt: action.voteEndsAt,
         },
       };
 
@@ -334,6 +365,8 @@ function roomReducer(state: RoomState, action: RoomAction): RoomState {
           selectedChoice: null,
           roundEndData: null,
           gameEndData: null,
+          votes: {},
+          voteEndsAt: null,
         },
       };
 
@@ -371,6 +404,8 @@ const initialState: RoomState = {
     selectedChoice: null,
     roundEndData: null,
     gameEndData: null,
+    votes: {},
+    voteEndsAt: null,
   },
   ui: {
     currentUser: null,
@@ -491,7 +526,19 @@ export function useRoomState() {
           break;
 
         case "game_ended":
-          dispatch({ type: "GAME_ENDED", finalScores: message.finalScores });
+          dispatch({
+            type: "GAME_ENDED",
+            finalScores: (message as GameEndedMessage).finalScores,
+            voteEndsAt: (message as GameEndedMessage).voteEndsAt,
+          });
+          break;
+
+        case "vote_update":
+          dispatch({
+            type: "VOTE_UPDATE",
+            votes: (message as VoteUpdateMessage).votes,
+            voteEndsAt: (message as VoteUpdateMessage).voteEndsAt,
+          });
           break;
 
         case "answer_result":
@@ -613,9 +660,15 @@ export function useRoomState() {
     [send],
   );
 
-  const handlePlayAgain = useCallback(() => {
-    send({ type: "start_game" });
-  }, [send]);
+  const handleVote = useCallback(
+    (vote: boolean) => {
+      send({
+        type: "vote_play_again",
+        vote,
+      });
+    },
+    [send],
+  );
 
   const handleOpenPlaylistModal = useCallback(() => {
     if (state.ui.availablePlaylists.length === 0 && !fetchedPlaylistsRef.current) {
@@ -706,6 +759,8 @@ export function useRoomState() {
     selectedChoice: state.game.selectedChoice,
     roundEndData: state.game.roundEndData,
     gameEndData: state.game.gameEndData,
+    votes: state.game.votes,
+    voteEndsAt: state.game.voteEndsAt,
     availablePlaylists: state.ui.availablePlaylists,
     playlistsLoading: state.ui.playlistsLoading,
     isConnected: state.ui.isConnected,
@@ -720,7 +775,7 @@ export function useRoomState() {
     handleCreateBlend: () => console.log("Creating blend..."),
     handleSettingsUpdate,
     handleAnswer,
-    handlePlayAgain,
+    handleVote,
     handleSendMessage,
     setShowSettingsModal: (show: boolean) => dispatch({ type: "SET_SHOW_SETTINGS_MODAL", show }),
     setShowPlaylistModal: (show: boolean) => dispatch({ type: "SET_SHOW_PLAYLIST_MODAL", show }),

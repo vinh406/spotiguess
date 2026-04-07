@@ -21,6 +21,7 @@ import type {
   UnifiedRoomState,
   UnifiedRoomStateMessage,
   GameStateSnapshot,
+  VoteUpdateMessage,
 } from "../../../shared/types";
 
 export const MessageBuilders = {
@@ -41,6 +42,9 @@ export const MessageBuilders = {
       ),
       answers: Object.fromEntries(
         state.game.answers instanceof Map ? state.game.answers : Object.entries(state.game.answers),
+      ),
+      votes: Object.fromEntries(
+        state.game.votes instanceof Map ? state.game.votes : Object.entries(state.game.votes),
       ),
     };
 
@@ -190,10 +194,20 @@ export const MessageBuilders = {
     };
   },
 
-  gameEnded(finalScores: PlayerScore[]): GameEndedMessage {
+  gameEnded(finalScores: PlayerScore[], voteEndsAt: number): GameEndedMessage {
     return {
       type: "game_ended",
       finalScores,
+      voteEndsAt,
+      timestamp: Date.now(),
+    };
+  },
+
+  voteUpdate(votes: Record<string, boolean>, voteEndsAt: number): VoteUpdateMessage {
+    return {
+      type: "vote_update",
+      votes,
+      voteEndsAt,
       timestamp: Date.now(),
     };
   },

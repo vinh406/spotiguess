@@ -85,6 +85,9 @@ export interface GameStateSnapshot {
   roundStartTime: number;
   roundEndTime: number;
   roundDuration: number;
+  // Voting for next game
+  votes: Record<string, boolean>; // userId -> vote
+  voteEndsAt: number | null;
 }
 
 export interface UnifiedRoomState {
@@ -156,6 +159,11 @@ export interface AnswerMessage extends BaseMessage {
   choiceIndex: number;
 }
 
+export interface VotePlayAgainMessage extends BaseMessage {
+  type: "vote_play_again";
+  vote: boolean;
+}
+
 export type IncomingMessage =
   | JoinMessage
   | LeaveMessage
@@ -165,6 +173,7 @@ export type IncomingMessage =
   | UpdatePlaylistMessage
   | StartGameMessage
   | AnswerMessage
+  | VotePlayAgainMessage
   | BaseMessage;
 
 // ============================================================================
@@ -256,6 +265,7 @@ export interface RoundEndedMessage extends BaseMessage {
 export interface GameEndedMessage extends BaseMessage {
   type: "game_ended";
   finalScores: PlayerScore[];
+  voteEndsAt: number;
 }
 
 export interface AnswerResultMessage extends BaseMessage {
@@ -268,6 +278,12 @@ export interface AnswerResultMessage extends BaseMessage {
 export interface LeaderboardUpdateMessage extends BaseMessage {
   type: "leaderboard_update";
   leaderboard: PlayerScore[];
+}
+
+export interface VoteUpdateMessage extends BaseMessage {
+  type: "vote_update";
+  votes: Record<string, boolean>;
+  voteEndsAt: number;
 }
 
 export type OutgoingMessage =
@@ -285,7 +301,9 @@ export type OutgoingMessage =
   | RoundEndedMessage
   | GameEndedMessage
   | AnswerResultMessage
-  | LeaderboardUpdateMessage;
+  | LeaderboardUpdateMessage
+  | VoteUpdateMessage;
+
 
 /**
  * OutgoingMessage with room connection stats added by broadcastToRoom.

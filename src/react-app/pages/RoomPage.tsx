@@ -59,13 +59,14 @@ export default function RoomPage() {
     handleCreateBlend,
     handleSettingsUpdate,
     handleAnswer,
-    handlePlayAgain,
+    handleVote,
     handleSendMessage,
+    votes,
+    voteEndsAt,
     setShowSettingsModal,
     setShowPlaylistModal,
     setShowPlaylistModalWithFetch,
     setSpotifyLink,
-    resetToLobby,
   } = useRoomState();
 
   const isGameActive =
@@ -175,8 +176,9 @@ export default function RoomPage() {
                 <GameEndView
                   finalScores={gameEndData.finalScores}
                   myUserId={currentUser.userId}
-                  onPlayAgain={handlePlayAgain}
-                  onBackToLobby={resetToLobby}
+                  onPlayAgain={handleVote}
+                  votes={votes}
+                  voteEndsAt={voteEndsAt}
                 />
               ) : null}
             </div>

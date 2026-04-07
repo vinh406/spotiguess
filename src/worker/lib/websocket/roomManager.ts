@@ -114,13 +114,13 @@ export class RoomManager {
     return this.gameEngine.getGameState().currentRound;
   }
 
-  initGame(songs: Song[], rounds: number, room: string): void {
+  initGame(songs: Song[], rounds: number, room: string, isContinuing: boolean = false): void {
     const players = this.getUsersInRoom(room).map((u) => ({
       userId: u.userId,
       username: u.username,
       userImage: u.userImage ?? undefined,
     }));
-    this.gameEngine.initGame(songs, rounds, players);
+    this.gameEngine.initGame(songs, rounds, players, isContinuing);
   }
 
   async startRound(endRoundCallback: () => void): Promise<{
@@ -173,16 +173,46 @@ export class RoomManager {
     return this.gameEngine.endRound();
   }
 
-  endGame(): PlayerScore[] {
-    return this.gameEngine.endGame();
+  endGame(voteDurationMs: number): { finalScores: PlayerScore[]; voteEndsAt: number } {
+    if (this.roundTimer) {
+      clearTimeout(this.roundTimer);
+      this.roundTimer = null;
+    }
+    return this.gameEngine.endGame(voteDurationMs);
   }
 
-  resetGame(): void {
+  resetGame(room: string): void {
     if (this.roundTimer) {
       clearTimeout(this.roundTimer);
       this.roundTimer = null;
     }
     this.gameEngine.reset();
+    this.sessionManager.resetReadyStates(room);
+  }
+
+  recordVote(userId: string, vote: boolean): void {
+    this.gameEngine.recordVote(userId, vote);
+  }
+
+  getVotes(): Record<string, boolean> {
+    return this.gameEngine.getVotes();
+  }
+
+  getVoteEndsAt(): number | null {
+    return this.gameEngine.getVoteEndsAt();
+  }
+
+  allPlayersVoted(room: string): boolean {
+    const playersInRoom = this.getUsersInRoom(room).map((u) => u.userId);
+    return this.gameEngine.allPlayersVoted(playersInRoom);
+  }
+
+  didAllPlayersVoteYes(): boolean {
+    return this.gameEngine.didAllPlayersVoteYes();
+  }
+
+  resetReadyStates(room: string): void {
+    this.sessionManager.resetReadyStates(room);
   }
 
   tryStartGame(): boolean {

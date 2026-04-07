@@ -45,4 +45,13 @@ export class SessionManager {
     });
     return users;
   }
+
+  resetReadyStates(room: string): void {
+    this.sessions.forEach((session, ws) => {
+      if (session.room === room) {
+        session.isReady = false;
+        ws.serializeAttachment({ ...session });
+      }
+    });
+  }
 }

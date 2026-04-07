@@ -7,6 +7,8 @@ import type {
   UpdateSettingsMessage,
   UpdatePlaylistMessage,
   AnswerMessage,
+  Song,
+  VotePlayAgainMessage,
 } from "../shared/types";
 import { MessageBuilders, broadcastToRoom, sendToSocket, RoomManager } from "./lib/websocket";
 import {
@@ -21,6 +23,7 @@ import { getPlaylistTracks } from "./lib/spotify/playlists";
 export class WebSocketHibernationServer extends DurableObject {
   private roomManager: RoomManager;
   private spotifyEnv: Env;
+  private voteTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -115,6 +118,9 @@ export class WebSocketHibernationServer extends DurableObject {
         break;
       case "answer":
         await this.handleAnswer(ws, message as AnswerMessage);
+        break;
+      case "vote_play_again":
+        await this.handleVote(ws, message as VotePlayAgainMessage);
         break;
       default:
         await this.handleChatMessage(ws, message as ChatMessage);
@@ -370,7 +376,7 @@ export class WebSocketHibernationServer extends DurableObject {
     const settings = this.roomManager.getRoomSettings();
     const roomPlaylist = this.roomManager.getRoomPlaylist();
 
-    let songs: import("../shared/types").Song[] = [];
+    let songs: Song[] = [];
     if (roomPlaylist?.id) {
       songs = await getPlaylistTracks(roomPlaylist.id);
     }
@@ -445,16 +451,90 @@ export class WebSocketHibernationServer extends DurableObject {
   }
 
   private handleEndGameInternal(room: string): void {
-    const finalScores = this.roomManager.endGame();
+    const { finalScores, voteEndsAt } = this.roomManager.endGame(SCORING.VOTE_DURATION);
 
-    const gameEndedMessage = MessageBuilders.gameEnded(finalScores);
+    const gameEndedMessage = MessageBuilders.gameEnded(finalScores, voteEndsAt);
     broadcastToRoom(this.roomManager.getSessions(), room, gameEndedMessage);
 
+    if (this.voteTimer) clearTimeout(this.voteTimer);
+    this.voteTimer = setTimeout(() => {
+      if (this.roomManager.getCurrentGamePhase() === "gameEnd") {
+        this.roomManager.resetGame(room);
+        const unifiedState = this.roomManager.getUnifiedRoomState(room);
+        broadcastToRoom(this.roomManager.getSessions(), room, MessageBuilders.unifiedRoomState(unifiedState));
+      }
+      this.voteTimer = null;
+    }, SCORING.VOTE_DURATION);
+  }
+
+  private async handleVote(ws: WebSocket, data: VotePlayAgainMessage): Promise<void> {
+    const session = this.validateSession(ws);
+    if (!session) return;
+
+    if (this.roomManager.getCurrentGamePhase() !== "gameEnd") {
+      sendToSocket(ws, MessageBuilders.error("No active vote at this time"));
+      return;
+    }
+
+    this.roomManager.recordVote(session.userId, data.vote);
+
+    const votes = this.roomManager.getVotes();
+    const voteEndsAt = this.roomManager.getVoteEndsAt() || 0;
+    const voteUpdateMessage = MessageBuilders.voteUpdate(votes, voteEndsAt);
+    broadcastToRoom(this.roomManager.getSessions(), session.room, voteUpdateMessage);
+
+    if (!data.vote) {
+      // Someone voted NO, immediately return to lobby after a short delay
+      if (this.voteTimer) clearTimeout(this.voteTimer);
+      this.voteTimer = setTimeout(() => {
+        this.roomManager.resetGame(session.room);
+        const unifiedState = this.roomManager.getUnifiedRoomState(session.room);
+        broadcastToRoom(this.roomManager.getSessions(), session.room, MessageBuilders.unifiedRoomState(unifiedState));
+        this.voteTimer = null;
+      }, 3000);
+      return;
+    }
+
+    if (this.roomManager.allPlayersVoted(session.room)) {
+      if (this.roomManager.didAllPlayersVoteYes()) {
+        if (this.voteTimer) clearTimeout(this.voteTimer);
+        this.voteTimer = null;
+        await this.handleContinueGame(session.room);
+      } else {
+        // Not everyone voted yes
+        if (this.voteTimer) clearTimeout(this.voteTimer);
+        this.voteTimer = setTimeout(() => {
+          this.roomManager.resetGame(session.room);
+          const unifiedState = this.roomManager.getUnifiedRoomState(session.room);
+          broadcastToRoom(this.roomManager.getSessions(), session.room, MessageBuilders.unifiedRoomState(unifiedState));
+          this.voteTimer = null;
+        }, 3000);
+      }
+    }
+  }
+
+  private async handleContinueGame(room: string): Promise<void> {
+    const settings = this.roomManager.getRoomSettings();
+    const roomPlaylist = this.roomManager.getRoomPlaylist();
+
+    let songs: Song[] = [];
+    if (roomPlaylist?.id) {
+      songs = await getPlaylistTracks(roomPlaylist.id);
+    }
+
+    // We pass isContinuing=true to keep the songs list and index
+    this.roomManager.initGame(songs, settings.rounds, room, true);
+
+    const gameStartedMessage = MessageBuilders.gameStarted(
+      settings.rounds,
+      settings.timePerRound,
+      settings.audioTime,
+    );
+    broadcastToRoom(this.roomManager.getSessions(), room, gameStartedMessage);
+
     setTimeout(() => {
-      this.roomManager.resetGame();
-      const usersMessage = MessageBuilders.usersUpdated(this.roomManager.getUsersInRoom(room));
-      broadcastToRoom(this.roomManager.getSessions(), room, usersMessage);
-    }, SCORING.GAME_END_DELAY);
+      this.handleStartRoundInternal(room);
+    }, 2000);
   }
 
   private async handleAnswer(ws: WebSocket, data: AnswerMessage): Promise<void> {

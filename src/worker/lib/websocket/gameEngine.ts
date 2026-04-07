@@ -27,6 +27,8 @@ export interface GameStateSnapshot {
   roundStartTime: number;
   roundEndTime: number;
   roundDuration: number;
+  votes: Record<string, boolean>;
+  voteEndsAt: number | null;
 }
 
 export class GameEngine {
@@ -41,6 +43,9 @@ export class GameEngine {
   private roundStartTime: number = 0;
   private roundEndTime: number = 0;
   private roundDuration: number = 0;
+
+  private votes: Map<string, boolean> = new Map();
+  private voteEndsAt: number | null = null;
 
   private similarTracksCache: Map<string, LastFMSimilarTrack[]> = new Map();
   private lastFmApiKey: string | null = null;
@@ -63,18 +68,46 @@ export class GameEngine {
     songs: Song[],
     rounds: number,
     initialPlayers: { userId: string; username: string; userImage?: string }[],
+    isContinuing: boolean = false,
   ): void {
     this.phase = "playing";
-    this.songs = this.shuffleArray(songs);
+
+    if (!isContinuing) {
+      this.songs = this.shuffleArray(songs);
+      this.currentSongIndex = 0;
+    } else {
+      // If continuing, we don't reshuffle and keep currentSongIndex as is
+      // But we should ensure we have enough songs left
+      if (this.currentSongIndex + rounds > this.songs.length) {
+        // Not enough songs left, reshuffle everything
+        this.songs = this.shuffleArray(songs);
+        this.currentSongIndex = 0;
+      }
+    }
+
     this.totalRounds = rounds;
     this.currentRound = 1;
-    this.currentSongIndex = 0;
     this.answers = new Map();
     this.similarTracksCache = new Map();
+    this.votes = new Map();
+    this.voteEndsAt = null;
 
-    this.scores = new Map();
+    // Reset scores for everyone for the new game
+    for (const userId of this.scores.keys()) {
+      const p = this.scores.get(userId)!;
+      p.score = 0;
+      p.streak = 0;
+    }
+
+    // Add new players or ensure existing players have scores reset
     for (const player of initialPlayers) {
-      this.addPlayer(player.userId, player.username, player.userImage);
+      if (!this.scores.has(player.userId)) {
+        this.addPlayer(player.userId, player.username, player.userImage);
+      } else {
+        const p = this.scores.get(player.userId)!;
+        p.score = 0;
+        p.streak = 0;
+      }
     }
   }
 
@@ -184,9 +217,34 @@ export class GameEngine {
     return { correctAnswer, scores };
   }
 
-  endGame(): PlayerScore[] {
+  endGame(voteDurationMs: number): { finalScores: PlayerScore[]; voteEndsAt: number } {
     this.phase = "gameEnd";
-    return Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
+    this.votes.clear();
+    this.voteEndsAt = Date.now() + voteDurationMs;
+    const finalScores = Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
+    return { finalScores, voteEndsAt: this.voteEndsAt };
+  }
+
+  recordVote(userId: string, vote: boolean): void {
+    if (this.phase !== "gameEnd") return;
+    this.votes.set(userId, vote);
+  }
+
+  getVotes(): Record<string, boolean> {
+    return Object.fromEntries(this.votes);
+  }
+
+  getVoteEndsAt(): number | null {
+    return this.voteEndsAt;
+  }
+
+  allPlayersVoted(playersInRoom: string[]): boolean {
+    return playersInRoom.every((userId) => this.votes.has(userId));
+  }
+
+  didAllPlayersVoteYes(): boolean {
+    if (this.votes.size === 0) return false;
+    return Array.from(this.votes.values()).every((v) => v === true);
   }
 
   reset(): void {
@@ -201,6 +259,8 @@ export class GameEngine {
     this.roundStartTime = 0;
     this.roundEndTime = 0;
     this.roundDuration = 0;
+    this.votes.clear();
+    this.voteEndsAt = null;
   }
 
   getScores(): PlayerScore[] {
@@ -220,6 +280,8 @@ export class GameEngine {
       roundStartTime: this.roundStartTime,
       roundEndTime: this.roundEndTime,
       roundDuration: this.roundDuration,
+      votes: Object.fromEntries(this.votes),
+      voteEndsAt: this.voteEndsAt,
     };
   }
 

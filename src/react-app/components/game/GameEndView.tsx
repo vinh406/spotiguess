@@ -1,28 +1,45 @@
+import { useState, useEffect } from "react";
 import type { PlayerScore } from "../../../shared/types";
 import { Button } from "../ui";
 
 interface GameEndViewProps {
   finalScores: PlayerScore[];
   myUserId: string;
-  onPlayAgain: () => void;
-  onBackToLobby: () => void;
+  onPlayAgain: (vote: boolean) => void;
+  votes: Record<string, boolean>;
+  voteEndsAt: number | null;
 }
 
 export function GameEndView({
   finalScores,
   myUserId,
   onPlayAgain,
-  onBackToLobby,
+  votes,
+  voteEndsAt,
 }: GameEndViewProps) {
   const sortedScores = [...finalScores].sort((a, b) => b.score - a.score);
   const winner = sortedScores[0];
   const myRank = sortedScores.findIndex((s) => s.userId === myUserId) + 1;
   const myScore = finalScores.find((s) => s.userId === myUserId);
   const isWinner = myUserId === winner?.userId;
+  const myVote = votes[myUserId];
+  const totalPlayers = finalScores.length;
+  const votesCount = Object.keys(votes).length;
+
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  useEffect(() => {
+    if (!voteEndsAt) return;
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((voteEndsAt - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0) clearInterval(interval);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [voteEndsAt]);
 
   return (
     <div className="h-full flex flex-col">
-      {/* Compact Header */}
       <div className="shrink-0 px-3 sm:px-4 py-3 border-b border-gray-700/50 text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
           <span className="text-2xl">🏆</span>
@@ -117,19 +134,32 @@ export function GameEndView({
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div className="shrink-0 px-3 sm:px-4 py-3 border-t border-gray-700/50 space-y-2">
-        <Button onClick={onPlayAgain} className="w-full py-2.5 text-sm" size="md">
-          Play Again
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={onBackToLobby}
-          className="w-full py-2.5 text-sm"
-          size="md"
-        >
-          Back to Lobby
-        </Button>
+        {myVote === undefined ? (
+          <>
+            <p className="text-center text-sm text-gray-400 mb-2">
+              Continue playing? ({votesCount}/{totalPlayers} voted) - {timeLeft}s left
+            </p>
+            <div className="flex gap-2">
+              <Button onClick={() => onPlayAgain(true)} className="flex-1 py-2.5 text-sm" size="md">
+                Yes
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => onPlayAgain(false)}
+                className="flex-1 py-2.5 text-sm"
+                size="md"
+              >
+                No
+              </Button>
+            </div>
+          </>
+        ) : (
+          <p className="text-center text-sm text-gray-400 py-2">
+            Waiting for others... {myVote ? "✅ Voted Yes" : "❌ Voted No"} ({votesCount}/
+            {totalPlayers})
+          </p>
+        )}
       </div>
     </div>
   );
