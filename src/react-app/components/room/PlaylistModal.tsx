@@ -101,7 +101,7 @@ export function PlaylistModal({
           ) : (
             availablePlaylists.map((playlist) => (
               <Button
-                variant="ghost"
+                variant="secondary"
                 key={playlist.id}
                 onClick={() => onSelectPlaylist(playlist)}
                 className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all text-left ${

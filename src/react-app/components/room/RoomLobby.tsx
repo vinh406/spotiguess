@@ -38,7 +38,7 @@ export function RoomLobby({
     <div className="space-y-6">
       {/* Room Info */}
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-white mb-1">Game Room</h2>
             <p className="text-gray-400">Share this code with friends to invite them</p>
@@ -49,13 +49,13 @@ export function RoomLobby({
         </div>
 
         {/* Playlist & Settings Row */}
-        <div className="flex gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Playlist Selection */}
           <Button
             variant="secondary"
             onClick={onOpenPlaylist}
             disabled={!isHost}
-            className={`flex-1 flex items-center gap-3 px-4 py-3 ${
+            className={`flex items-center gap-3 px-4 py-3 ${
               isHost
                 ? "bg-gray-700/30 hover:bg-gray-700/50 border-gray-600/30"
                 : "bg-gray-700/10 border-gray-600/10 opacity-50 cursor-not-allowed"
@@ -96,7 +96,7 @@ export function RoomLobby({
           <Button
             variant="secondary"
             onClick={onOpenSettings}
-            className="flex-1 flex items-center gap-3 px-4 py-3 bg-gray-700/30 hover:bg-gray-700/50 transition-all border border-gray-600/30"
+            className="flex items-center gap-3 px-4 py-3 bg-gray-700/30 hover:bg-gray-700/50 transition-all border border-gray-600/30"
           >
             <svg
               className="w-5 h-5 text-gray-400"
