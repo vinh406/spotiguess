@@ -218,7 +218,6 @@ export class GameEngine {
   }
 
   endGame(voteDurationMs: number): { finalScores: PlayerScore[]; voteEndsAt: number } {
-    this.phase = "gameEnd";
     this.votes.clear();
     this.voteEndsAt = Date.now() + voteDurationMs;
     const finalScores = Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
@@ -226,7 +225,9 @@ export class GameEngine {
   }
 
   recordVote(userId: string, vote: boolean): void {
-    if (this.phase !== "gameEnd") return;
+    if (this.voteEndsAt && Date.now() > this.voteEndsAt) {
+      return;
+    }
     this.votes.set(userId, vote);
   }
 

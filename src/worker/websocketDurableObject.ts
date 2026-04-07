@@ -429,49 +429,67 @@ export class WebSocketHibernationServer extends DurableObject {
     const roundThatJustEnded = this.roomManager.getCurrentRound();
     const { correctAnswer, scores } = this.roomManager.endRound();
 
-    const roundEndedMessage = MessageBuilders.roundEnded(roundThatJustEnded, correctAnswer, scores);
-    broadcastToRoom(this.roomManager.getSessions(), room, roundEndedMessage);
-
-    const leaderboardMessage = MessageBuilders.leaderboardUpdate(scores);
-    broadcastToRoom(this.roomManager.getSessions(), room, leaderboardMessage);
-
     const settings = this.roomManager.getRoomSettings();
     const totalRounds = settings.rounds;
     const currentRound = this.roomManager.getCurrentRound();
 
     if (currentRound <= totalRounds) {
+      const nextRoundAt = Date.now() + SCORING.ROUND_END_DELAY;
+      const roundEndedMessage = MessageBuilders.roundEnded(
+        roundThatJustEnded,
+        correctAnswer,
+        scores,
+        nextRoundAt,
+      );
+      broadcastToRoom(this.roomManager.getSessions(), room, roundEndedMessage);
+
+      const leaderboardMessage = MessageBuilders.leaderboardUpdate(scores);
+      broadcastToRoom(this.roomManager.getSessions(), room, leaderboardMessage);
+
       setTimeout(() => {
         this.handleStartRoundInternal(room);
       }, SCORING.ROUND_END_DELAY);
     } else {
-      setTimeout(() => {
-        this.handleEndGameInternal(room);
-      }, SCORING.ROUND_END_DELAY);
+      // For the last round, transition to game end phase first to get final state
+      const { voteEndsAt } = this.roomManager.endGame(SCORING.VOTE_DURATION);
+
+      // Send a single merged message for both round and game end
+      const roundEndedMessage = MessageBuilders.roundEnded(
+        roundThatJustEnded,
+        correctAnswer,
+        scores,
+        undefined, // nextRoundAt
+        true, // isFinal
+        voteEndsAt,
+      );
+      broadcastToRoom(this.roomManager.getSessions(), room, roundEndedMessage);
+
+      const leaderboardMessage = MessageBuilders.leaderboardUpdate(scores);
+      broadcastToRoom(this.roomManager.getSessions(), room, leaderboardMessage);
+
+      // Setup the timer to return to lobby
+      if (this.voteTimer) clearTimeout(this.voteTimer);
+      this.voteTimer = setTimeout(() => {
+        // Only reset if we're still in the voting period and it hasn't been reset yet
+        if (this.roomManager.getVoteEndsAt()) {
+          this.roomManager.resetGame(room);
+          const unifiedState = this.roomManager.getUnifiedRoomState(room);
+          broadcastToRoom(
+            this.roomManager.getSessions(),
+            room,
+            MessageBuilders.unifiedRoomState(unifiedState),
+          );
+        }
+        this.voteTimer = null;
+      }, SCORING.VOTE_DURATION);
     }
-  }
-
-  private handleEndGameInternal(room: string): void {
-    const { finalScores, voteEndsAt } = this.roomManager.endGame(SCORING.VOTE_DURATION);
-
-    const gameEndedMessage = MessageBuilders.gameEnded(finalScores, voteEndsAt);
-    broadcastToRoom(this.roomManager.getSessions(), room, gameEndedMessage);
-
-    if (this.voteTimer) clearTimeout(this.voteTimer);
-    this.voteTimer = setTimeout(() => {
-      if (this.roomManager.getCurrentGamePhase() === "gameEnd") {
-        this.roomManager.resetGame(room);
-        const unifiedState = this.roomManager.getUnifiedRoomState(room);
-        broadcastToRoom(this.roomManager.getSessions(), room, MessageBuilders.unifiedRoomState(unifiedState));
-      }
-      this.voteTimer = null;
-    }, SCORING.VOTE_DURATION);
   }
 
   private async handleVote(ws: WebSocket, data: VotePlayAgainMessage): Promise<void> {
     const session = this.validateSession(ws);
     if (!session) return;
 
-    if (this.roomManager.getCurrentGamePhase() !== "gameEnd") {
+    if (!this.roomManager.getVoteEndsAt()) {
       sendToSocket(ws, MessageBuilders.error("No active vote at this time"));
       return;
     }
@@ -489,7 +507,11 @@ export class WebSocketHibernationServer extends DurableObject {
       this.voteTimer = setTimeout(() => {
         this.roomManager.resetGame(session.room);
         const unifiedState = this.roomManager.getUnifiedRoomState(session.room);
-        broadcastToRoom(this.roomManager.getSessions(), session.room, MessageBuilders.unifiedRoomState(unifiedState));
+        broadcastToRoom(
+          this.roomManager.getSessions(),
+          session.room,
+          MessageBuilders.unifiedRoomState(unifiedState),
+        );
         this.voteTimer = null;
       }, 3000);
       return;
@@ -506,7 +528,11 @@ export class WebSocketHibernationServer extends DurableObject {
         this.voteTimer = setTimeout(() => {
           this.roomManager.resetGame(session.room);
           const unifiedState = this.roomManager.getUnifiedRoomState(session.room);
-          broadcastToRoom(this.roomManager.getSessions(), session.room, MessageBuilders.unifiedRoomState(unifiedState));
+          broadcastToRoom(
+            this.roomManager.getSessions(),
+            session.room,
+            MessageBuilders.unifiedRoomState(unifiedState),
+          );
           this.voteTimer = null;
         }, 3000);
       }

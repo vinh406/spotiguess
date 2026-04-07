@@ -3,15 +3,13 @@ import { test, expect } from "@playwright/test";
 const TEST_ROOM_CODE = "TEST123";
 
 test.describe("Spotiguess E2E", () => {
-  test("complete game flow - join room, import playlist, start game, see results", async ({
-    page,
-  }) => {
+  test("complete game flow - join room, play two games in a row", async ({ page }) => {
     // 1. Go directly to room page (skip OAuth)
     await page.goto(`/room/${TEST_ROOM_CODE}`);
 
     // 2. Enter username to join room
     const usernameInput = page.getByPlaceholder(/username/i);
-    await expect(usernameInput).toBeVisible({ timeout: 10000 });
+    await expect(usernameInput).toBeVisible();
     await usernameInput.fill("TestPlayer");
 
     const joinBtn = page.getByRole("button", { name: /join/i });
@@ -19,9 +17,7 @@ test.describe("Spotiguess E2E", () => {
     await joinBtn.click();
 
     // 3. Wait for room page to load
-    await expect(page.locator("text=Game Room")).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.locator("text=Game Room")).toBeVisible();
     await expect(page.locator("text=Room:")).toBeVisible();
 
     // 4. Open playlist modal
@@ -38,9 +34,6 @@ test.describe("Spotiguess E2E", () => {
 
     const importBtn = page.getByRole("button", { name: /import/i });
     await importBtn.click();
-
-    // 6. Wait for import and close modal if still open
-    await page.waitForTimeout(2000);
 
     // 7. Verify Select Playlist text is updated to show playlist name
     await expect(
@@ -62,99 +55,64 @@ test.describe("Spotiguess E2E", () => {
     const saveSettingsBtn = page.getByRole("button", { name: /save/i });
     await saveSettingsBtn.click();
 
-    // Wait for settings to be applied
-    await page.waitForTimeout(500);
-
     // 9. Click Start Game button (host)
     const startGameBtn = page.getByRole("button", { name: /start game/i });
     await expect(startGameBtn).toBeVisible();
     await startGameBtn.click();
     await page.waitForTimeout(3000); // Wait for game to start and first question to load
 
-    // 10. Play through each round by clicking the first option
-    let previousScore = 0;
-    for (let round = 1; round <= 5; round++) {
-      console.log(`Starting round ${round}...`);
+    // Loop to play two games
+    for (let game = 1; game <= 2; game++) {
+      console.log(`--- Starting game ${game} ---`);
+      let previousScore = 0;
 
-      // Wait for answer options to appear
-      await page.waitForTimeout(2000);
-
-      // Click the first answer button (contains number "1")
-      const firstOption = page.locator("button:has-text('1')").first();
-      if (await firstOption.isVisible()) {
+      for (let round = 1; round <= 5; round++) {
+        await expect(page.locator(`text=Round ${round}`)).toBeVisible({ timeout: 10000 });
+        // Click the first answer button (contains number "1")
+        const firstOption = page.locator("button:has-text('1')").first();
+        await expect(firstOption).toBeVisible({ timeout: 10000 });
         await firstOption.click();
-        console.log(`Clicked answer in round ${round}`);
-      }
 
-      // Wait for round end screen to appear
-      try {
-        await expect(page.locator("text=Round Complete")).toBeVisible({
-          timeout: 10000,
-        });
-        console.log(`Round ${round} ended, looking for score...`);
-      } catch {
-        console.log(`Round ${round}: Could not find round end screen`);
-      }
+        if (round < 5) {
+          // Wait for next round transition implicitly
+          await expect(page.locator("text=Round Complete")).toBeVisible({ timeout: 10000 });
+        } else {
+          // Last round
+          await expect(page.locator("text=Game Over")).toBeVisible({ timeout: 10000 });
+          await expect(page.locator("text=Final Standings")).toBeVisible();
+        }
 
-      // Look for the actual score in the score display (green colored text)
-      const greenScoreElement = page.locator("p.text-green-400").first();
-      let currentScore = 0;
-      if (await greenScoreElement.isVisible()) {
-        const scoreText = await greenScoreElement.textContent();
-        currentScore = scoreText ? parseInt(scoreText.replace(/\D/g, "")) : 0;
-      }
+        // Look for the actual score in the score display (green colored text)
+        const greenScoreElement = page.locator("p.text-green-400").first();
+        let currentScore = 0;
+        if (await greenScoreElement.isVisible()) {
+          const scoreText = await greenScoreElement.textContent();
+          currentScore = scoreText ? parseInt(scoreText.replace(/\D/g, "")) : 0;
+        }
 
-      if (currentScore > previousScore) {
-        console.log(`Round ${round}: CORRECT! Score: ${previousScore} → ${currentScore}`);
+        if (currentScore > previousScore) {
+          console.log(`Round ${round}: CORRECT! Score: ${previousScore} → ${currentScore}`);
+        } else {
+          console.log(`Round ${round}: Wrong answer. Score: ${currentScore}`);
+        }
+        previousScore = currentScore;
+      }
+      // Vote for next game
+      if (game === 1) {
+        const yesBtn = page.getByRole("button", { name: "Yes" });
+        await expect(yesBtn).toBeVisible();
+        await yesBtn.click();
       } else {
-        console.log(`Round ${round}: Wrong answer. Score: ${currentScore}`);
-      }
-      previousScore = currentScore;
-
-      if (round < 5) {
-        // Click Next Round to proceed to next round
-        console.log(`Looking for Next Round button...`);
-        const nextBtn = page.getByRole("button", { name: /Next Round/i });
-        await nextBtn.click();
-        console.log(`Clicked Next Round button`);
-
-        // Wait for next round to actually start (answer buttons appear again), unless this was the last round
-        await expect(page.locator("button:has-text('1')").first()).toBeVisible({
-          timeout: 10000,
-        });
-        console.log(`Round ${round + 1} is ready`);
-        await page.waitForTimeout(1000);
+        // Vote No for second game
+        const noBtn = page.getByRole("button", { name: "No" });
+        await expect(noBtn).toBeVisible();
+        await noBtn.click();
       }
     }
 
-    // 11. Wait for game to progress to Game End (if not already there)
-    try {
-      await expect(page.locator("text=Game Over")).toBeVisible({
-        timeout: 30000,
-      });
-    } catch {
-      // If Game Over not visible, check if we need to click through more rounds
-      const nextBtn = page.getByRole("button", {
-        name: /Next Round|See Final Results/i,
-      });
-      if (await nextBtn.isVisible()) {
-        await nextBtn.click();
-      }
-      await expect(page.locator("text=Game Over")).toBeVisible({
-        timeout: 30000,
-      });
-    }
-
-    // 12. Verify final scores are displayed
-    await expect(page.locator("text=Final Standings")).toBeVisible();
-
-    // 13. Click Back to Lobby
-    const backToLobbyBtn = page.getByRole("button", { name: /back to lobby/i });
-    await expect(backToLobbyBtn).toBeVisible();
-    await backToLobbyBtn.click();
-
-    // 14. Verify we're back in lobby
+    // Verify back to lobby state
     await expect(page.locator("text=Game Room")).toBeVisible();
     await expect(page.locator("text=Players")).toBeVisible();
+    await expect(page.getByRole("button", { name: /start game/i })).toBeVisible();
   });
 });

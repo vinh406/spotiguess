@@ -8,7 +8,6 @@ import { PlaylistModal } from "../components/room/PlaylistModal";
 import { UsernamePrompt } from "../components/room/UsernamePrompt";
 import { GameView } from "../components/game/GameView";
 import { RoundEndView } from "../components/game/RoundEndView";
-import { GameEndView } from "../components/game/GameEndView";
 import { useAuth } from "../hooks/useAuth";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { Button } from "../components/ui";
@@ -44,8 +43,7 @@ export default function RoomPage() {
     myStreak,
     hasAnswered,
     selectedChoice,
-    roundEndData,
-    gameEndData,
+    endStateData,
     availablePlaylists,
     playlistsLoading,
     isConnected,
@@ -69,8 +67,7 @@ export default function RoomPage() {
     setSpotifyLink,
   } = useRoomState();
 
-  const isGameActive =
-    gamePhase === "playing" || gamePhase === "roundEnd" || gamePhase === "gameEnd";
+  const isGameActive = gamePhase === "playing" || gamePhase === "roundEnd";
 
   if (authLoading) {
     return (
@@ -163,22 +160,17 @@ export default function RoomPage() {
                   myStreak={myStreak}
                   onAnswer={handleAnswer}
                 />
-              ) : gamePhase === "roundEnd" && roundEndData ? (
+              ) : gamePhase === "roundEnd" && endStateData ? (
                 <RoundEndView
                   round={currentRound}
                   totalRounds={totalRounds}
-                  correctAnswer={roundEndData.correctAnswer}
-                  scores={roundEndData.scores}
-                  myUserId={currentUser.userId}
-                  onNextRound={() => {}}
-                />
-              ) : gamePhase === "gameEnd" && gameEndData ? (
-                <GameEndView
-                  finalScores={gameEndData.finalScores}
+                  correctAnswer={endStateData.correctAnswer!}
+                  scores={endStateData.scores}
                   myUserId={currentUser.userId}
                   onPlayAgain={handleVote}
                   votes={votes}
                   voteEndsAt={voteEndsAt}
+                  nextRoundAt={endStateData.nextRoundAt}
                 />
               ) : null}
             </div>

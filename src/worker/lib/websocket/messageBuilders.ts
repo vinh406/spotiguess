@@ -13,7 +13,6 @@ import type {
   GameStartedMessage,
   RoundStartedMessage,
   RoundEndedMessage,
-  GameEndedMessage,
   AnswerResultMessage,
   LeaderboardUpdateMessage,
   SongChoice,
@@ -184,20 +183,21 @@ export const MessageBuilders = {
     };
   },
 
-  roundEnded(round: number, correctAnswer: SongChoice, scores: PlayerScore[]): RoundEndedMessage {
+  roundEnded(
+    round: number,
+    correctAnswer: SongChoice,
+    scores: PlayerScore[],
+    nextRoundAt?: number,
+    isFinal?: boolean,
+    voteEndsAt?: number,
+  ): RoundEndedMessage {
     return {
       type: "round_ended",
       round,
       correctAnswer,
       scores,
-      timestamp: Date.now(),
-    };
-  },
-
-  gameEnded(finalScores: PlayerScore[], voteEndsAt: number): GameEndedMessage {
-    return {
-      type: "game_ended",
-      finalScores,
+      nextRoundAt,
+      isFinal,
       voteEndsAt,
       timestamp: Date.now(),
     };

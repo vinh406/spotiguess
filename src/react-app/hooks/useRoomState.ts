@@ -17,7 +17,6 @@ import type {
   UserSession,
   RoomSettings,
   UnifiedRoomStateMessage,
-  GameEndedMessage,
   VoteUpdateMessage,
 } from "../../shared/types";
 import { DEFAULT_ROOM_SETTINGS } from "../../shared/constants";
@@ -48,8 +47,12 @@ interface RoomState {
     myStreak: number;
     hasAnswered: boolean;
     selectedChoice: number | null;
-    roundEndData: { correctAnswer: SongChoice; scores: PlayerScore[] } | null;
-    gameEndData: { finalScores: PlayerScore[]; voteEndsAt: number } | null;
+    endStateData: {
+      correctAnswer?: SongChoice;
+      scores: PlayerScore[];
+      voteEndsAt?: number;
+      nextRoundAt?: number;
+    } | null;
     votes: Record<string, boolean>;
     voteEndsAt: number | null;
   };
@@ -84,8 +87,15 @@ type RoomAction =
       endTime: number;
       duration: number;
     }
-  | { type: "ROUND_ENDED"; round: number; correctAnswer: SongChoice; scores: PlayerScore[] }
-  | { type: "GAME_ENDED"; finalScores: PlayerScore[]; voteEndsAt: number }
+  | {
+      type: "ROUND_ENDED";
+      round: number;
+      correctAnswer: SongChoice;
+      scores: PlayerScore[];
+      nextRoundAt?: number;
+      isFinal?: boolean;
+      voteEndsAt?: number;
+    }
   | { type: "VOTE_UPDATE"; votes: Record<string, boolean>; voteEndsAt: number }
   | { type: "ANSWER_RESULT"; isCorrect: boolean; points: number; streak: number }
   | { type: "LEADERBOARD_UPDATE"; leaderboard: PlayerScore[] }
@@ -151,6 +161,14 @@ function roomReducer(state: RoomState, action: RoomAction): RoomState {
           myStreak: myScoreObj?.streak ?? 0,
           hasAnswered: !!myAnswer,
           selectedChoice: myAnswer?.choiceIndex ?? null,
+          endStateData:
+            unified.game.phase === "roundEnd"
+              ? {
+                  correctAnswer: unified.game.choices.find((c) => c.isCorrect),
+                  scores: Object.values(unified.game.scores).sort((a, b) => b.score - a.score),
+                  voteEndsAt: unified.game.voteEndsAt ?? undefined,
+                }
+              : null,
           votes: unified.game.votes || {},
           voteEndsAt: unified.game.voteEndsAt,
         },
@@ -226,8 +244,7 @@ function roomReducer(state: RoomState, action: RoomAction): RoomState {
           scores: [],
           myScore: 0,
           myStreak: 0,
-          roundEndData: null,
-          gameEndData: null,
+          endStateData: null,
           votes: {},
           voteEndsAt: null,
         },
@@ -249,8 +266,7 @@ function roomReducer(state: RoomState, action: RoomAction): RoomState {
           roundDuration: action.duration,
           hasAnswered: false,
           selectedChoice: null,
-          roundEndData: null,
-          gameEndData: null,
+          endStateData: null,
         },
       };
 
@@ -260,21 +276,15 @@ function roomReducer(state: RoomState, action: RoomAction): RoomState {
         game: {
           ...state.game,
           phase: "roundEnd",
-          roundEndData: { correctAnswer: action.correctAnswer, scores: action.scores },
+          endStateData: {
+            correctAnswer: action.correctAnswer,
+            scores: action.scores,
+            nextRoundAt: action.nextRoundAt,
+            voteEndsAt: action.voteEndsAt,
+          },
           scores: action.scores,
-        },
-      };
-
-    case "GAME_ENDED":
-      return {
-        ...state,
-        game: {
-          ...state.game,
-          phase: "gameEnd",
-          gameEndData: { finalScores: action.finalScores, voteEndsAt: action.voteEndsAt },
-          scores: action.finalScores,
-          voteEndsAt: action.voteEndsAt,
-          votes: {},
+          voteEndsAt: action.voteEndsAt ?? state.game.voteEndsAt,
+          votes: action.isFinal ? {} : state.game.votes,
         },
       };
 
@@ -363,8 +373,7 @@ function roomReducer(state: RoomState, action: RoomAction): RoomState {
           myStreak: 0,
           hasAnswered: false,
           selectedChoice: null,
-          roundEndData: null,
-          gameEndData: null,
+          endStateData: null,
           votes: {},
           voteEndsAt: null,
         },
@@ -402,8 +411,7 @@ const initialState: RoomState = {
     myStreak: 0,
     hasAnswered: false,
     selectedChoice: null,
-    roundEndData: null,
-    gameEndData: null,
+    endStateData: null,
     votes: {},
     voteEndsAt: null,
   },
@@ -522,14 +530,9 @@ export function useRoomState() {
             round: message.round,
             correctAnswer: message.correctAnswer,
             scores: message.scores,
-          });
-          break;
-
-        case "game_ended":
-          dispatch({
-            type: "GAME_ENDED",
-            finalScores: (message as GameEndedMessage).finalScores,
-            voteEndsAt: (message as GameEndedMessage).voteEndsAt,
+            nextRoundAt: message.nextRoundAt,
+            isFinal: message.isFinal,
+            voteEndsAt: message.voteEndsAt,
           });
           break;
 
@@ -757,8 +760,7 @@ export function useRoomState() {
     myStreak: state.game.myStreak,
     hasAnswered: state.game.hasAnswered,
     selectedChoice: state.game.selectedChoice,
-    roundEndData: state.game.roundEndData,
-    gameEndData: state.game.gameEndData,
+    endStateData: state.game.endStateData,
     votes: state.game.votes,
     voteEndsAt: state.game.voteEndsAt,
     availablePlaylists: state.ui.availablePlaylists,

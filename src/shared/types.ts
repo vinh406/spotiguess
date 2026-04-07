@@ -71,7 +71,7 @@ export interface PlayerScore {
 }
 
 // Game phase types
-export type GamePhase = "lobby" | "starting" | "playing" | "roundEnd" | "gameEnd";
+export type GamePhase = "lobby" | "starting" | "playing" | "roundEnd";
 
 export interface GameStateSnapshot {
   phase: GamePhase;
@@ -260,12 +260,9 @@ export interface RoundEndedMessage extends BaseMessage {
   round: number;
   correctAnswer: SongChoice;
   scores: PlayerScore[];
-}
-
-export interface GameEndedMessage extends BaseMessage {
-  type: "game_ended";
-  finalScores: PlayerScore[];
-  voteEndsAt: number;
+  nextRoundAt?: number;
+  isFinal?: boolean;
+  voteEndsAt?: number;
 }
 
 export interface AnswerResultMessage extends BaseMessage {
@@ -299,11 +296,9 @@ export type OutgoingMessage =
   | GameStartedMessage
   | RoundStartedMessage
   | RoundEndedMessage
-  | GameEndedMessage
   | AnswerResultMessage
   | LeaderboardUpdateMessage
   | VoteUpdateMessage;
-
 
 /**
  * OutgoingMessage with room connection stats added by broadcastToRoom.
