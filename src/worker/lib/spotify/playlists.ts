@@ -58,7 +58,7 @@ export async function getCurrentUserPlaylists(userId: string, env: Env): Promise
         id: playlist.id,
         name: playlist.name,
         description: playlist.description ?? undefined,
-        trackCount: (playlist as any).items?.total ?? 0,
+        trackCount: (playlist as { items?: { total?: number } }).items?.total ?? 0,
         imageUrl: playlist.images[0]?.url ?? undefined,
       });
     }

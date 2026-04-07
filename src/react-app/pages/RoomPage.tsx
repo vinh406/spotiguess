@@ -9,7 +9,7 @@ import { UsernamePrompt } from "../components/room/UsernamePrompt";
 import { GameView } from "../components/game/GameView";
 import { RoundEndView } from "../components/game/RoundEndView";
 import { GameEndView } from "../components/game/GameEndView";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { Button } from "../components/ui";
 

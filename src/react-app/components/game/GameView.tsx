@@ -57,7 +57,6 @@ export function GameView({
     }
     if (song.previewUrl) {
       audioRef.current = new Audio(song.previewUrl);
-      audioRef.current.volume = volume / 100;
       audioRef.current.play().catch(() => {});
 
       // Stop audio after audioTime

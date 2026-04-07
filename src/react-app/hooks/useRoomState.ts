@@ -1,6 +1,6 @@
 import { useReducer, useCallback, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "./useAuth";
 import type {
   Player,
   Playlist,

@@ -1,23 +1,6 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { createAuthClient } from "better-auth/client";
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  image?: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  login: () => void;
-  logout: () => Promise<void>;
-  checkSession: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext, User } from "../hooks/useAuth";
 const authClient = createAuthClient();
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -75,10 +58,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-}
+

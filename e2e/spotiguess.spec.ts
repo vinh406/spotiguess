@@ -92,7 +92,7 @@ test.describe("Spotiguess E2E", () => {
           timeout: 10000,
         });
         console.log(`Round ${round} ended, looking for score...`);
-      } catch (e) {
+      } catch {
         console.log(`Round ${round}: Could not find round end screen`);
       }
 
@@ -132,7 +132,7 @@ test.describe("Spotiguess E2E", () => {
       await expect(page.locator("text=Game Over")).toBeVisible({
         timeout: 30000,
       });
-    } catch (e) {
+    } catch {
       // If Game Over not visible, check if we need to click through more rounds
       const nextBtn = page.getByRole("button", {
         name: /Next Round|See Final Results/i,

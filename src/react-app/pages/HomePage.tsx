@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import Header from "../components/Header";
 import ActionCard from "../components/common/ActionCard";
 import StatCard from "../components/common/StatCard";
