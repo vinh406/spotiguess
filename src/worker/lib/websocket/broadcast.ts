@@ -6,11 +6,9 @@ import type { OutgoingMessage, BroadcastMessage, UserSession } from "../../../sh
 export function broadcastToRoom(
   sessions: Map<WebSocket, UserSession>,
   room: string,
-  message: OutgoingMessage
+  message: OutgoingMessage,
 ): void {
-  const roomUsers = Array.from(sessions.entries()).filter(
-    ([, session]) => session.room === room
-  );
+  const roomUsers = Array.from(sessions.entries()).filter(([, session]) => session.room === room);
 
   const broadcastMessage: BroadcastMessage = {
     ...message,

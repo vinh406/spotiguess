@@ -40,17 +40,11 @@ export function RoomLobby({
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-1">
-              Game Room
-            </h2>
-            <p className="text-gray-400">
-              Share this code with friends to invite them
-            </p>
+            <h2 className="text-2xl font-bold text-white mb-1">Game Room</h2>
+            <p className="text-gray-400">Share this code with friends to invite them</p>
           </div>
           <div className="px-6 py-3 bg-gradient-to-r from-green-400/20 to-green-600/20 rounded-xl border border-green-500/30">
-            <span className="text-3xl font-bold text-green-400 tracking-wider">
-              {roomName}
-            </span>
+            <span className="text-3xl font-bold text-green-400 tracking-wider">{roomName}</span>
           </div>
         </div>
 
@@ -94,12 +88,7 @@ export function RoomLobby({
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Button>
 
@@ -140,12 +129,7 @@ export function RoomLobby({
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Button>
         </div>
@@ -177,8 +161,8 @@ export function RoomLobby({
                 player.isHost
                   ? "bg-yellow-500/10 border border-yellow-500/30"
                   : player.isReady
-                  ? "bg-green-500/10 border border-green-500/30"
-                  : "bg-gray-700/30 border border-gray-600/30"
+                    ? "bg-green-500/10 border border-green-500/30"
+                    : "bg-gray-700/30 border border-gray-600/30"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -199,23 +183,17 @@ export function RoomLobby({
                   <p className="text-white font-medium">
                     {player.username}
                     {player.userId === currentUser?.userId && (
-                      <span className="ml-2 text-gray-400 text-sm">
-                        (You)
-                      </span>
+                      <span className="ml-2 text-gray-400 text-sm">(You)</span>
                     )}
                   </p>
                   <p className="text-sm text-gray-400">
-                    {player.isHost ? "Host" : (player.isReady ? "Ready to play!" : "Not ready")}
+                    {player.isHost ? "Host" : player.isReady ? "Ready to play!" : "Not ready"}
                   </p>
                 </div>
               </div>
               <div
                 className={`w-3 h-3 rounded-full ${
-                  player.isHost
-                    ? "bg-yellow-500"
-                    : player.isReady
-                    ? "bg-green-500"
-                    : "bg-gray-500"
+                  player.isHost ? "bg-yellow-500" : player.isReady ? "bg-green-500" : "bg-gray-500"
                 }`}
               />
             </div>
@@ -231,9 +209,7 @@ export function RoomLobby({
               onClick={onToggleReady}
               variant={isReady ? "primary" : "secondary"}
               className={`w-full py-4 rounded-xl font-semibold text-lg ${
-                isReady
-                  ? "bg-green-500 text-white hover:bg-green-600"
-                  : "text-gray-300"
+                isReady ? "bg-green-500 text-white hover:bg-green-600" : "text-gray-300"
               }`}
             >
               {isReady ? "✓ Ready!" : "Mark as Ready"}
@@ -261,9 +237,7 @@ export function RoomLobby({
           )}
 
           {isHost && currentWarning && (
-            <p className="text-center text-yellow-400 text-sm">
-              ⚠️ {currentWarning}
-            </p>
+            <p className="text-center text-yellow-400 text-sm">⚠️ {currentWarning}</p>
           )}
         </div>
       </div>

@@ -2,9 +2,14 @@ import type { GamePhase, Song, SongChoice, PlayerScore } from "../../../shared/t
 import { SCORING } from "../../../shared/constants";
 import { getSimilarTracks, getArtistTopTracks, type LastFMSimilarTrack } from "../lastfm/client";
 
-function calculateScore(isCorrect: boolean, timeTakenMs: number, timePerRoundMs: number, streak: number): number {
+function calculateScore(
+  isCorrect: boolean,
+  timeTakenMs: number,
+  timePerRoundMs: number,
+  streak: number,
+): number {
   if (!isCorrect) return 0;
-  const speedRatio = 1 - (timeTakenMs / timePerRoundMs);
+  const speedRatio = 1 - timeTakenMs / timePerRoundMs;
   const speedBonus = Math.round(SCORING.MAX_SPEED_BONUS * Math.max(0, speedRatio));
   const streakBonus = streak * SCORING.STREAK_BONUS;
   return SCORING.BASE_POINTS + speedBonus + streakBonus;
@@ -25,7 +30,7 @@ export interface GameStateSnapshot {
 }
 
 export class GameEngine {
-  private phase: GamePhase = 'lobby';
+  private phase: GamePhase = "lobby";
   private currentRound: number = 0;
   private totalRounds: number = 0;
   private songs: Song[] = [];
@@ -36,7 +41,7 @@ export class GameEngine {
   private roundStartTime: number = 0;
   private roundEndTime: number = 0;
   private roundDuration: number = 0;
-  
+
   private similarTracksCache: Map<string, LastFMSimilarTrack[]> = new Map();
   private lastFmApiKey: string | null = null;
 
@@ -54,8 +59,12 @@ export class GameEngine {
     this.phase = phase;
   }
 
-  initGame(songs: Song[], rounds: number, initialPlayers: { userId: string, username: string, userImage?: string }[]): void {
-    this.phase = 'playing';
+  initGame(
+    songs: Song[],
+    rounds: number,
+    initialPlayers: { userId: string; username: string; userImage?: string }[],
+  ): void {
+    this.phase = "playing";
     this.songs = this.shuffleArray(songs);
     this.totalRounds = rounds;
     this.currentRound = 1;
@@ -90,9 +99,9 @@ export class GameEngine {
     endTime: number;
     duration: number;
   }> {
-    this.phase = 'playing';
+    this.phase = "playing";
     const song = this.songs[this.currentSongIndex]!;
-    
+
     let choices: SongChoice[];
     if (this.lastFmApiKey) {
       const cachedSimilarTracks = this.similarTracksCache.get(song.id);
@@ -109,7 +118,7 @@ export class GameEngine {
     } else {
       choices = this.generateChoices(song, this.songs);
     }
-    
+
     this.choices = choices;
     this.roundDuration = timePerRound;
     this.roundStartTime = Date.now();
@@ -127,7 +136,11 @@ export class GameEngine {
     };
   }
 
-  recordAnswer(userId: string, choiceIndex: number, timePerRound: number): { isCorrect: boolean; points: number; streak: number } {
+  recordAnswer(
+    userId: string,
+    choiceIndex: number,
+    timePerRound: number,
+  ): { isCorrect: boolean; points: number; streak: number } {
     if (this.answers.has(userId)) {
       const existing = this.answers.get(userId)!;
       const playerScore = this.scores.get(userId);
@@ -158,9 +171,9 @@ export class GameEngine {
   }
 
   endRound(): { correctAnswer: SongChoice; scores: PlayerScore[] } {
-    this.phase = 'roundEnd';
+    this.phase = "roundEnd";
 
-    const correctAnswer = this.choices.find(c => c.isCorrect)!;
+    const correctAnswer = this.choices.find((c) => c.isCorrect)!;
     const scores = Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
 
     if (this.currentSongIndex < this.songs.length - 1) {
@@ -172,12 +185,12 @@ export class GameEngine {
   }
 
   endGame(): PlayerScore[] {
-    this.phase = 'gameEnd';
+    this.phase = "gameEnd";
     return Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
   }
 
   reset(): void {
-    this.phase = 'lobby';
+    this.phase = "lobby";
     this.currentRound = 0;
     this.totalRounds = 0;
     this.songs = [];
@@ -211,11 +224,11 @@ export class GameEngine {
   }
 
   allPlayersAnswered(playersInRoom: string[]): boolean {
-    return playersInRoom.every(userId => this.answers.has(userId));
+    return playersInRoom.every((userId) => this.answers.has(userId));
   }
 
   private generateChoices(correctSong: Song, allSongs: Song[]): SongChoice[] {
-    const wrongSongs = allSongs.filter(s => s.id !== correctSong.id);
+    const wrongSongs = allSongs.filter((s) => s.id !== correctSong.id);
     const shuffled = this.shuffleArray(wrongSongs);
     const decoys = shuffled.slice(0, 3);
 
@@ -256,10 +269,10 @@ export class GameEngine {
         isCorrect: false,
       }));
     } else if (similarTracks.length > 0) {
-      const wrongSongs = allSongs.filter(s => s.id !== correctSong.id);
+      const wrongSongs = allSongs.filter((s) => s.id !== correctSong.id);
       const shuffled = this.shuffleArray(wrongSongs);
       const fallbackDecoys = shuffled.slice(0, 3 - similarTracks.length);
-      
+
       decoys = [
         ...similarTracks.map((track, i) => ({
           index: i + 1,
@@ -278,7 +291,7 @@ export class GameEngine {
       ];
     } else {
       decoys = allSongs
-        .filter(s => s.id !== correctSong.id)
+        .filter((s) => s.id !== correctSong.id)
         .slice(0, 3)
         .map((song, i) => ({
           index: i + 1,

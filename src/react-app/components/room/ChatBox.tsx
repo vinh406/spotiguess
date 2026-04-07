@@ -19,12 +19,7 @@ interface ChatBoxProps {
 
 function ChatBubbleIcon({ className }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -61,7 +56,13 @@ function NotificationBadge({
   );
 }
 
-export function ChatBox({ messages, onSendMessage, userId, isConnected, usersCount }: ChatBoxProps) {
+export function ChatBox({
+  messages,
+  onSendMessage,
+  userId,
+  isConnected,
+  usersCount,
+}: ChatBoxProps) {
   const [inputMessage, setInputMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -124,9 +125,7 @@ export function ChatBox({ messages, onSendMessage, userId, isConnected, usersCou
       return (
         <div
           key={index}
-          className={`flex flex-col ${
-            isOwnMessage ? "items-end" : "items-start"
-          } mb-3`}
+          className={`flex flex-col ${isOwnMessage ? "items-end" : "items-start"} mb-3`}
         >
           <div
             className={`max-w-[85%] px-4 py-2 rounded-2xl ${
@@ -136,19 +135,13 @@ export function ChatBox({ messages, onSendMessage, userId, isConnected, usersCou
             }`}
           >
             {!isOwnMessage && message.username && (
-              <div className="text-xs font-semibold mb-1 text-green-400">
-                {message.username}
-              </div>
+              <div className="text-xs font-semibold mb-1 text-green-400">{message.username}</div>
             )}
             <p className="text-sm break-words">{message.content}</p>
           </div>
           <div className="flex items-center gap-2 mt-1 px-1">
-            <span className="text-xs text-gray-500">
-              {formatTime(message.timestamp)}
-            </span>
-            {isOwnMessage && (
-              <span className="text-xs text-gray-500">You</span>
-            )}
+            <span className="text-xs text-gray-500">{formatTime(message.timestamp)}</span>
+            {isOwnMessage && <span className="text-xs text-gray-500">You</span>}
           </div>
         </div>
       );
@@ -173,11 +166,7 @@ export function ChatBox({ messages, onSendMessage, userId, isConnected, usersCou
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div
-            className={`w-2 h-2 rounded-full ${
-              isConnected ? "bg-green-500" : "bg-red-500"
-            }`}
-          />
+          <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} />
           <span className="text-xs text-gray-400">
             {isConnected ? "Connected" : "Disconnected"}
           </span>
@@ -191,9 +180,7 @@ export function ChatBox({ messages, onSendMessage, userId, isConnected, usersCou
             <div className="w-12 h-12 bg-gray-700/30 rounded-full flex items-center justify-center mb-3">
               <ChatBubbleIcon className="w-6 h-6 text-gray-500" />
             </div>
-            <p className="text-gray-500 text-sm">
-              No messages yet. Start the conversation!
-            </p>
+            <p className="text-gray-500 text-sm">No messages yet. Start the conversation!</p>
           </div>
         ) : (
           messages.map((message, index) => renderMessage(message, index))
@@ -220,12 +207,7 @@ export function ChatBox({ messages, onSendMessage, userId, isConnected, usersCou
             size="sm"
             className="p-2"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"

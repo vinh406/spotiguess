@@ -44,9 +44,7 @@ test.describe("Spotiguess E2E", () => {
 
     // 7. Verify Select Playlist text is updated to show playlist name
     await expect(
-      page.getByText(
-        "very vulnerable rn if any goth girl would like to take advantage of me",
-      ),
+      page.getByText("very vulnerable rn if any goth girl would like to take advantage of me"),
     ).toBeVisible();
 
     // 8. Open settings modal to set quick game settings
@@ -107,9 +105,7 @@ test.describe("Spotiguess E2E", () => {
       }
 
       if (currentScore > previousScore) {
-        console.log(
-          `Round ${round}: CORRECT! Score: ${previousScore} → ${currentScore}`,
-        );
+        console.log(`Round ${round}: CORRECT! Score: ${previousScore} → ${currentScore}`);
       } else {
         console.log(`Round ${round}: Wrong answer. Score: ${currentScore}`);
       }

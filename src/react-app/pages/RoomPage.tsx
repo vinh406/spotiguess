@@ -68,7 +68,8 @@ export default function RoomPage() {
     resetToLobby,
   } = useRoomState();
 
-  const isGameActive = gamePhase === 'playing' || gamePhase === 'roundEnd' || gamePhase === 'gameEnd';
+  const isGameActive =
+    gamePhase === "playing" || gamePhase === "roundEnd" || gamePhase === "gameEnd";
 
   if (authLoading) {
     return (
@@ -121,19 +122,19 @@ export default function RoomPage() {
               aria-label={chatOpen ? "Close chat" : "Open chat"}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
               </svg>
               {!chatOpen && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               )}
             </Button>
 
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleLeaveRoom}
-            >
+            <Button variant="secondary" size="sm" onClick={handleLeaveRoom}>
               Leave
             </Button>
           </div>
@@ -146,7 +147,7 @@ export default function RoomPage() {
         <main className="flex-1 min-w-0 overflow-hidden">
           {isGameActive ? (
             <div className="h-full">
-              {gamePhase === 'playing' && currentSong ? (
+              {gamePhase === "playing" && currentSong ? (
                 <GameView
                   round={currentRound}
                   totalRounds={totalRounds}
@@ -161,7 +162,7 @@ export default function RoomPage() {
                   myStreak={myStreak}
                   onAnswer={handleAnswer}
                 />
-              ) : gamePhase === 'roundEnd' && roundEndData ? (
+              ) : gamePhase === "roundEnd" && roundEndData ? (
                 <RoundEndView
                   round={currentRound}
                   totalRounds={totalRounds}
@@ -170,7 +171,7 @@ export default function RoomPage() {
                   myUserId={currentUser.userId}
                   onNextRound={() => {}}
                 />
-              ) : gamePhase === 'gameEnd' && gameEndData ? (
+              ) : gamePhase === "gameEnd" && gameEndData ? (
                 <GameEndView
                   finalScores={gameEndData.finalScores}
                   myUserId={currentUser.userId}

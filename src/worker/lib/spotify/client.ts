@@ -18,12 +18,7 @@ async function getSpotifyTokens(userId: string, env: Env): Promise<SpotifyTokens
     .select()
     .from(account)
     .leftJoin(user, eq(account.userId, user.id))
-    .where(
-      and(
-        eq(account.providerId, "spotify"),
-        eq(account.userId, userId)
-      )
-    )
+    .where(and(eq(account.providerId, "spotify"), eq(account.userId, userId)))
     .limit(1);
 
   if (!accountRecord.length) {
@@ -53,7 +48,7 @@ async function refreshSpotifyToken(refreshToken: string, env: Env): Promise<Spot
     const response = await fetch("https://accounts.spotify.com/api/token", {
       method: "POST",
       headers: {
-        "Authorization": `Basic ${credentials}`,
+        Authorization: `Basic ${credentials}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
@@ -68,7 +63,7 @@ async function refreshSpotifyToken(refreshToken: string, env: Env): Promise<Spot
       return null;
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       access_token: string;
       refresh_token?: string;
       expires_in: number;
@@ -85,7 +80,11 @@ async function refreshSpotifyToken(refreshToken: string, env: Env): Promise<Spot
   }
 }
 
-async function updateSpotifyTokens(userId: string, tokens: SpotifyTokens, env: Env): Promise<boolean> {
+async function updateSpotifyTokens(
+  userId: string,
+  tokens: SpotifyTokens,
+  env: Env,
+): Promise<boolean> {
   const sql = postgres(env.DATABASE_URL);
   const db = drizzle(sql);
 
@@ -97,12 +96,7 @@ async function updateSpotifyTokens(userId: string, tokens: SpotifyTokens, env: E
         refreshToken: tokens.refreshToken,
         accessTokenExpiresAt: tokens.expiresAt ? new Date(tokens.expiresAt) : null,
       })
-      .where(
-        and(
-          eq(account.providerId, "spotify"),
-          eq(account.userId, userId)
-        )
-      );
+      .where(and(eq(account.providerId, "spotify"), eq(account.userId, userId)));
     return true;
   } catch (error) {
     console.error("Failed to update Spotify tokens:", error);
@@ -112,7 +106,7 @@ async function updateSpotifyTokens(userId: string, tokens: SpotifyTokens, env: E
 
 export async function getSpotifyClientForUser(
   userId: string,
-  env: Env
+  env: Env,
 ): Promise<SpotifyApi | null> {
   const tokens = await getSpotifyTokens(userId, env);
 
@@ -137,7 +131,9 @@ export async function getSpotifyClientForUser(
   return SpotifyApi.withAccessToken(env.SPOTIFY_CLIENT_ID, {
     access_token: validTokens.accessToken,
     token_type: "Bearer",
-    expires_in: validTokens.expiresAt ? Math.floor((validTokens.expiresAt - Date.now()) / 1000) : 3600,
+    expires_in: validTokens.expiresAt
+      ? Math.floor((validTokens.expiresAt - Date.now()) / 1000)
+      : 3600,
     refresh_token: validTokens.refreshToken ?? "",
     expires: validTokens.expiresAt ?? Date.now() + 3600 * 1000,
   });

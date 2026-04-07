@@ -71,7 +71,7 @@ export interface PlayerScore {
 }
 
 // Game phase types
-export type GamePhase = 'lobby' | 'starting' | 'playing' | 'roundEnd' | 'gameEnd';
+export type GamePhase = "lobby" | "starting" | "playing" | "roundEnd" | "gameEnd";
 
 export interface GameStateSnapshot {
   phase: GamePhase;
@@ -105,7 +105,7 @@ export interface BaseMessage {
 }
 
 export interface JoinMessage extends BaseMessage {
-  type: 'join';
+  type: "join";
   username: string;
   room: string;
   userId: string;
@@ -113,14 +113,14 @@ export interface JoinMessage extends BaseMessage {
 }
 
 export interface LeaveMessage extends BaseMessage {
-  type: 'leave';
+  type: "leave";
   username: string;
   room: string;
   userId: string;
 }
 
 export interface ChatMessage extends BaseMessage {
-  type: 'message' | 'chat_message';
+  type: "message" | "chat_message";
   content: string;
   username?: string;
   userId?: string;
@@ -128,11 +128,11 @@ export interface ChatMessage extends BaseMessage {
 }
 
 export interface ReadyMessage extends BaseMessage {
-  type: 'ready';
+  type: "ready";
 }
 
 export interface UpdateSettingsMessage extends BaseMessage {
-  type: 'update_settings';
+  type: "update_settings";
   payload: {
     rounds?: number;
     timePerRound?: number;
@@ -141,18 +141,18 @@ export interface UpdateSettingsMessage extends BaseMessage {
 }
 
 export interface UpdatePlaylistMessage extends BaseMessage {
-  type: 'update_playlist';
+  type: "update_playlist";
   payload: {
     playlist: Playlist;
   };
 }
 
 export interface StartGameMessage extends BaseMessage {
-  type: 'start_game';
+  type: "start_game";
 }
 
 export interface AnswerMessage extends BaseMessage {
-  type: 'answer';
+  type: "answer";
   choiceIndex: number;
 }
 
@@ -172,12 +172,12 @@ export type IncomingMessage =
 // ============================================================================
 
 export interface ErrorMessage extends BaseMessage {
-  type: 'error';
+  type: "error";
   content: string;
 }
 
 export interface UserJoinedMessage extends BaseMessage {
-  type: 'user_joined';
+  type: "user_joined";
   username: string;
   userId: string;
   room: string;
@@ -186,7 +186,7 @@ export interface UserJoinedMessage extends BaseMessage {
 }
 
 export interface UserLeftMessage extends BaseMessage {
-  type: 'user_left';
+  type: "user_left";
   username: string;
   userId: string;
   room: string;
@@ -194,30 +194,30 @@ export interface UserLeftMessage extends BaseMessage {
 }
 
 export interface UsersUpdatedMessage extends BaseMessage {
-  type: 'users_updated';
+  type: "users_updated";
   users: UserSession[];
 }
 
 export interface UnifiedRoomStateMessage extends BaseMessage {
-  type: 'unified_room_state';
+  type: "unified_room_state";
   state: UnifiedRoomState;
 }
 
 export interface SettingsUpdatedMessage extends BaseMessage {
-  type: 'settings_updated';
+  type: "settings_updated";
   settings: RoomSettings;
 }
 
 export interface PlaylistUpdatedMessage extends BaseMessage {
-  type: 'playlist_updated';
+  type: "playlist_updated";
   playlist: Playlist;
 }
 
 export interface GameEventMessage extends BaseMessage {
-  type: 'game_event';
+  type: "game_event";
   payload: {
     eventType: string;
-    category: 'system' | 'game';
+    category: "system" | "game";
     icon: string;
     content: string;
     data: Record<string, unknown>;
@@ -229,14 +229,14 @@ export interface GameEventMessage extends BaseMessage {
 // ============================================================================
 
 export interface GameStartedMessage extends BaseMessage {
-  type: 'game_started';
+  type: "game_started";
   totalRounds: number;
   timePerRound: number;
   audioTime: number;
 }
 
 export interface RoundStartedMessage extends BaseMessage {
-  type: 'round_started';
+  type: "round_started";
   round: number;
   totalRounds: number;
   song: Song;
@@ -247,26 +247,26 @@ export interface RoundStartedMessage extends BaseMessage {
 }
 
 export interface RoundEndedMessage extends BaseMessage {
-  type: 'round_ended';
+  type: "round_ended";
   round: number;
   correctAnswer: SongChoice;
   scores: PlayerScore[];
 }
 
 export interface GameEndedMessage extends BaseMessage {
-  type: 'game_ended';
+  type: "game_ended";
   finalScores: PlayerScore[];
 }
 
 export interface AnswerResultMessage extends BaseMessage {
-  type: 'answer_result';
+  type: "answer_result";
   isCorrect: boolean;
   points: number;
   streak: number;
 }
 
 export interface LeaderboardUpdateMessage extends BaseMessage {
-  type: 'leaderboard_update';
+  type: "leaderboard_update";
   leaderboard: PlayerScore[];
 }
 

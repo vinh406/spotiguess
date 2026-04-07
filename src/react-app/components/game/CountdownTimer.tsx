@@ -7,7 +7,12 @@ interface CountdownTimerProps {
   onTimeUp: () => void;
 }
 
-export function CountdownTimer({ endTime, timePerRound, isPaused = false, onTimeUp }: CountdownTimerProps) {
+export function CountdownTimer({
+  endTime,
+  timePerRound,
+  isPaused = false,
+  onTimeUp,
+}: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState(-1);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -47,12 +52,12 @@ export function CountdownTimer({ endTime, timePerRound, isPaused = false, onTime
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-1">
-        <span className={`text-xs font-mono font-bold ${isUrgent ? "text-red-400" : "text-green-400"}`}>
+        <span
+          className={`text-xs font-mono font-bold ${isUrgent ? "text-red-400" : "text-green-400"}`}
+        >
           {seconds}s
         </span>
-        <span className="text-xs text-gray-500">
-          {Math.round(percentage)}%
-        </span>
+        <span className="text-xs text-gray-500">{Math.round(percentage)}%</span>
       </div>
       <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
         <div
@@ -60,8 +65,8 @@ export function CountdownTimer({ endTime, timePerRound, isPaused = false, onTime
             isUrgent
               ? "bg-gradient-to-r from-red-500 to-red-400"
               : percentage > 50
-              ? "bg-gradient-to-r from-green-500 to-green-400"
-              : "bg-gradient-to-r from-yellow-500 to-yellow-400"
+                ? "bg-gradient-to-r from-green-500 to-green-400"
+                : "bg-gradient-to-r from-yellow-500 to-yellow-400"
           }`}
           style={{ width: `${percentage}%` }}
         />

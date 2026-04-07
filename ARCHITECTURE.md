@@ -7,6 +7,7 @@ Spotiguess is a multiplayer Spotify song guessing game where players create room
 ## Technology Stack
 
 ### Backend
+
 - **Runtime**: Cloudflare Workers
 - **Framework**: Hono (edge-optimized web framework)
 - **Database**: PostgreSQL with Drizzle ORM
@@ -15,12 +16,14 @@ Spotiguess is a multiplayer Spotify song guessing game where players create room
 - **Auth**: better-auth with Spotify OAuth 2.0
 
 ### Frontend
+
 - **Framework**: React 18+ with TypeScript
 - **Build**: Vite
 - **Styling**: Tailwind CSS
 - **State**: React Context + WebSocket hooks
 
 ### External Services
+
 - **Spotify Web API**: Authentication, top tracks, song metadata
 - **Spotify Preview URLs**: 30-second previews for playback
 
@@ -53,12 +56,14 @@ Spotiguess is a multiplayer Spotify song guessing game where players create room
 ### Ephemeral State (Durable Objects)
 
 All room and game state is kept **in-memory** during gameplay using Durable Objects. This approach:
+
 - Reduces database load
 - Enables real-time updates via WebSocket
 - Simplifies state management
 - Only persists final results to database
 
 **State Lifecycle:**
+
 ```
 Room Created → Players Join → Game Starts → Rounds Play → Game Ends → Results Saved
      ↓              ↓              ↓             ↓             ↓            ↓
@@ -68,6 +73,7 @@ Room Created → Players Join → Game Starts → Rounds Play → Game Ends → 
 ### Room Management
 
 Rooms are managed entirely in the Durable Object:
+
 - **Room Code**: 8-character shareable code (e.g., "ABC123XYZ")
 - **Host**: First player to join becomes host
 - **Players**: Tracked with ready status
@@ -102,6 +108,7 @@ Rooms are managed entirely in the Durable Object:
 ### ✅ Implemented
 
 **Backend (Durable Object)**
+
 - WebSocket connection management with hibernation
 - Player session tracking (username, userId, host status, ready status)
 - Room settings management (maxPlayers, rounds, timePerRound)
@@ -111,6 +118,7 @@ Rooms are managed entirely in the Durable Object:
 - Game event system with styled notifications
 
 **Frontend (Room Page)**
+
 - Room lobby UI with player list
 - Host controls (settings, playlist, start game)
 - Player ready toggle
@@ -120,6 +128,7 @@ Rooms are managed entirely in the Durable Object:
 - Chat integration
 
 **Shared**
+
 - TypeScript types for WebSocket messages
 - Constants for default settings and limits
 - Mock playlists for UI demonstration
@@ -133,6 +142,7 @@ Rooms are managed entirely in the Durable Object:
 ### 📋 Planned Features
 
 **Game Mechanics**
+
 - Round flow with song playback
 - Guess validation (fuzzy matching)
 - Scoring system (base + speed bonus)
@@ -140,16 +150,19 @@ Rooms are managed entirely in the Durable Object:
 - Game end with results persistence
 
 **Spotify Integration**
+
 - Fetch user's top tracks
 - Blend algorithm (combine and shuffle tracks)
 - Song preview playback
 - Album art display
 
 **Database**
+
 - Songs table (Spotify track cache)
 - Game results table (final scores, winner, songs used)
 
 **Enhanced Features**
+
 - Team mode
 - Spectator mode
 - Chat history
@@ -159,6 +172,7 @@ Rooms are managed entirely in the Durable Object:
 ## WebSocket Events
 
 ### Client → Server
+
 - `join`: Join a room with username and userId
 - `leave`: Leave the current room
 - `chat_message`: Send a chat message
@@ -168,6 +182,7 @@ Rooms are managed entirely in the Durable Object:
 - `start_game`: Start the game (host only)
 
 ### Server → Client
+
 - `user_joined`: Player joined the room
 - `user_left`: Player left the room
 - `users_updated`: Player list changed
@@ -179,6 +194,7 @@ Rooms are managed entirely in the Durable Object:
 - `error`: Error message
 
 ### Game Event Categories
+
 - `system`: Join/leave, ready status, host changes
 - `game`: Game start, round start/end, game end
 - `scoring`: Points awarded, correct guesses (planned)
@@ -187,6 +203,7 @@ Rooms are managed entirely in the Durable Object:
 ## Database Schema
 
 ### Current (Implemented)
+
 ```sql
 -- Users (better-auth)
 user: id, name, email, image, createdAt, updatedAt
@@ -202,12 +219,13 @@ verification: id, identifier, value, expiresAt
 ```
 
 ### Planned
+
 ```sql
 -- Songs (Spotify track cache)
 songs: id, spotifyTrackId, title, artist, album, albumArtUrl, previewUrl, durationMs
 
 -- Game Results (persisted at game end)
-gameResults: id, roomCode, totalRounds, playerCount, startedAt, completedAt, 
+gameResults: id, roomCode, totalRounds, playerCount, startedAt, completedAt,
             winnerId, winnerName, finalScores (JSONB), songsUsed (JSONB)
 ```
 
@@ -222,12 +240,14 @@ gameResults: id, roomCode, totalRounds, playerCount, startedAt, completedAt,
 ## Development Phases
 
 ### Phase 1: Core Infrastructure ✅
+
 - Project setup (Vite, React, Hono)
 - Cloudflare Workers configuration
 - Database with Drizzle ORM
 - better-auth with Spotify OAuth
 
 ### Phase 2: Room & Lobby ✅
+
 - Durable Object for WebSocket
 - Room state management
 - Player tracking and ready system
@@ -235,24 +255,28 @@ gameResults: id, roomCode, totalRounds, playerCount, startedAt, completedAt,
 - Real-time updates
 
 ### Phase 3: Game Mechanics ✅
+
 - Game state initialization
 - Round flow with song playback
 - Scoring system
 - Leaderboard
 
 ### Phase 4: Spotify Integration
+
 - Fetch user's top tracks
 - Blend algorithm
 - Song preview playback
 - Album art display
 
 ### Phase 5: Persistence & Polish
+
 - Database tables for songs and game results
 - Save game results at end
 - Error handling and validation
 - Loading states and UX improvements
 
 ### Phase 6: Deployment
+
 - Deploy to Cloudflare
 - Environment configuration
 - Monitoring and logging

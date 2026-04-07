@@ -3,11 +3,11 @@ import type { SongChoice } from "../../../shared/types";
 import { CountdownTimer } from "./CountdownTimer";
 import { Slider, Button } from "../ui";
 
-const STORAGE_KEY = 'spotiguess-volume';
+const STORAGE_KEY = "spotiguess-volume";
 
 // Get initial volume from localStorage or default to 50
 function getInitialVolume(): number {
-  if (typeof window === 'undefined') return 50;
+  if (typeof window === "undefined") return 50;
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored !== null) {
     const parsed = Number(stored);
@@ -63,12 +63,12 @@ export function GameView({
       // Stop audio after audioTime
       stopAudioTimeout = setTimeout(() => {
         if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
         }
       }, audioTime);
     }
-    
+
     return () => {
       if (stopAudioTimeout) clearTimeout(stopAudioTimeout);
     };
@@ -102,7 +102,7 @@ export function GameView({
         onAnswer(index);
       }
     },
-    [hasAnswered, onAnswer]
+    [hasAnswered, onAnswer],
   );
 
   const handleTimeUp = useCallback(() => {}, []);
@@ -126,15 +126,11 @@ export function GameView({
           <div className="flex items-center gap-2 sm:gap-3">
             {myStreak > 1 && (
               <div className="px-2 py-0.5 bg-yellow-500/20 rounded-full">
-                <span className="text-xs font-semibold text-yellow-400">
-                  🔥 {myStreak}
-                </span>
+                <span className="text-xs font-semibold text-yellow-400">🔥 {myStreak}</span>
               </div>
             )}
             <div className="px-2 py-0.5 bg-green-500/20 rounded-full">
-              <span className="text-xs font-semibold text-green-400">
-                {myScore} pts
-              </span>
+              <span className="text-xs font-semibold text-green-400">{myScore} pts</span>
             </div>
           </div>
         </div>
@@ -155,7 +151,11 @@ export function GameView({
             />
           ) : (
             <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl flex items-center justify-center">
-              <svg className="w-8 h-8 sm:w-12 sm:h-12 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-8 h-8 sm:w-12 sm:h-12 text-gray-500"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
               </svg>
             </div>
@@ -204,16 +204,14 @@ export function GameView({
                       ? "bg-green-500/30 border-2 border-green-500"
                       : "bg-gray-700/30 border-2 border-gray-600 opacity-50"
                     : isSelected
-                    ? "bg-green-500/40 border-2 border-green-400"
-                    : "bg-gray-700/50 border-2 border-gray-600 hover:border-green-500/50 hover:bg-gray-700/70"
+                      ? "bg-green-500/40 border-2 border-green-400"
+                      : "bg-gray-700/50 border-2 border-gray-600 hover:border-green-500/50 hover:bg-gray-700/70"
                 }`}
               >
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div
                     className={`shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                      isSelected
-                        ? "bg-green-500 text-white"
-                        : "bg-gray-600 text-gray-300"
+                      isSelected ? "bg-green-500 text-white" : "bg-gray-600 text-gray-300"
                     }`}
                   >
                     {choice.index + 1}
@@ -222,9 +220,7 @@ export function GameView({
                     <p className="text-xs sm:text-sm font-semibold text-white truncate">
                       {choice.title}
                     </p>
-                    <p className="text-xs text-gray-400 truncate">
-                      {choice.artist}
-                    </p>
+                    <p className="text-xs text-gray-400 truncate">{choice.artist}</p>
                   </div>
                 </div>
               </Button>

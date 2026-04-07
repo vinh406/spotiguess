@@ -25,7 +25,7 @@ export const Slider = forwardRef<HTMLDivElement, SliderProps>(
       className = "",
       disabled = false,
     },
-    ref
+    ref,
   ) => {
     return (
       <BaseSlider.Root
@@ -50,7 +50,7 @@ export const Slider = forwardRef<HTMLDivElement, SliderProps>(
         </BaseSlider.Control>
       </BaseSlider.Root>
     );
-  }
+  },
 );
 
 Slider.displayName = "Slider";

@@ -34,21 +34,14 @@ export function PlaylistModal({
       maxWidth="lg"
       scrollable
       footer={
-        <Button
-          variant="secondary"
-          onClick={onClose}
-          className="w-full py-3"
-          size="lg"
-        >
+        <Button variant="secondary" onClick={onClose} className="w-full py-3" size="lg">
           Cancel
         </Button>
       }
     >
       {/* Spotify Link Input */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Import from Spotify
-        </label>
+        <label className="block text-sm font-medium text-gray-300 mb-2">Import from Spotify</label>
         <div className="flex gap-3">
           <Input
             type="text"
@@ -57,10 +50,7 @@ export function PlaylistModal({
             placeholder="Paste Spotify playlist link..."
             className="flex-1"
           />
-          <Button
-            onClick={onSubmitSpotifyLink}
-            disabled={!spotifyLink.trim()}
-          >
+          <Button onClick={onSubmitSpotifyLink} disabled={!spotifyLink.trim()}>
             Import
           </Button>
         </div>
@@ -72,12 +62,7 @@ export function PlaylistModal({
         className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all font-medium mb-6"
         size="lg"
       >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -104,11 +89,7 @@ export function PlaylistModal({
       )}
 
       {/* Error State */}
-      {error && !isLoading && (
-        <div className="text-center py-8 text-red-400">
-          {error}
-        </div>
-      )}
+      {error && !isLoading && <div className="text-center py-8 text-red-400">{error}</div>}
 
       {/* Playlists List */}
       {!isLoading && !error && (
@@ -137,21 +118,27 @@ export function PlaylistModal({
                   />
                 ) : (
                   <div className="w-14 h-14 rounded-lg bg-gray-600 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                    <svg
+                      className="w-6 h-6 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                      />
                     </svg>
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium truncate">
-                    {playlist.name}
-                  </p>
+                  <p className="text-white font-medium truncate">{playlist.name}</p>
                   <p className="text-sm text-gray-400 truncate">
                     {playlist.description || "No description"}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {playlist.trackCount} tracks
-                  </p>
+                  <p className="text-xs text-gray-500 mt-1">{playlist.trackCount} tracks</p>
                 </div>
                 {selectedPlaylist?.id === playlist.id && (
                   <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">

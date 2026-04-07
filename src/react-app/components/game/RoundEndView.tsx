@@ -53,9 +53,7 @@ export function RoundEndView({
               />
             )}
             <div className="min-w-0">
-              <p className="text-sm sm:text-base font-semibold text-white">
-                {correctAnswer.title}
-              </p>
+              <p className="text-sm sm:text-base font-semibold text-white">{correctAnswer.title}</p>
               <p className="text-xs sm:text-sm text-gray-400">{correctAnswer.artist}</p>
             </div>
           </div>
@@ -76,7 +74,9 @@ export function RoundEndView({
               {myScore.streak > 1 && (
                 <div className="text-center">
                   <p className="text-xs text-gray-400">Streak</p>
-                  <p className="text-lg sm:text-xl font-bold text-yellow-400">🔥 {myScore.streak}</p>
+                  <p className="text-lg sm:text-xl font-bold text-yellow-400">
+                    🔥 {myScore.streak}
+                  </p>
                 </div>
               )}
             </div>
@@ -85,9 +85,7 @@ export function RoundEndView({
 
         {/* Leaderboard */}
         <div className="px-3 sm:px-4 py-3">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">
-            Leaderboard
-          </p>
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Leaderboard</p>
           <div className="space-y-1.5">
             {sortedScores.map((score, index) => {
               const isMe = score.userId === myUserId;
@@ -104,10 +102,10 @@ export function RoundEndView({
                       rank === 1
                         ? "bg-yellow-500 text-white"
                         : rank === 2
-                        ? "bg-gray-400 text-white"
-                        : rank === 3
-                        ? "bg-amber-600 text-white"
-                        : "bg-gray-600 text-gray-300"
+                          ? "bg-gray-400 text-white"
+                          : rank === 3
+                            ? "bg-amber-600 text-white"
+                            : "bg-gray-600 text-gray-300"
                     }`}
                   >
                     {rank}
@@ -115,9 +113,7 @@ export function RoundEndView({
                   <div className="flex-1 min-w-0">
                     <p className="text-xs sm:text-sm font-semibold text-white truncate">
                       {score.username}
-                      {isMe && (
-                        <span className="ml-1.5 text-xs text-green-400">(You)</span>
-                      )}
+                      {isMe && <span className="ml-1.5 text-xs text-green-400">(You)</span>}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -137,11 +133,7 @@ export function RoundEndView({
 
       {/* Next Round Button */}
       <div className="shrink-0 px-3 sm:px-4 py-3 border-t border-gray-700/50">
-        <Button
-          onClick={onNextRound}
-          className="w-full py-2.5 text-sm"
-          size="md"
-        >
+        <Button onClick={onNextRound} className="w-full py-2.5 text-sm" size="md">
           {round < totalRounds ? "Next Round" : "See Final Results"}
         </Button>
       </div>

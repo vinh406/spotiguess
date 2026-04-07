@@ -32,7 +32,7 @@ export async function getSimilarTracks(
   artist: string,
   track: string,
   apiKey: string,
-  limit: number = 10
+  limit: number = 10,
 ): Promise<LastFMSimilarTrack[]> {
   try {
     const client = getLastFMClient(apiKey);
@@ -53,9 +53,10 @@ export async function getSimilarTracks(
       artist: t.artist.name,
       mbid: t.mbid,
       url: t.url,
-      imageUrl: t.image.find((img) => img.size === "medium")?.["#text"] ?? 
-                t.image.find((img) => img.size === "large")?.["#text"] ?? 
-                null,
+      imageUrl:
+        t.image.find((img) => img.size === "medium")?.["#text"] ??
+        t.image.find((img) => img.size === "large")?.["#text"] ??
+        null,
     }));
   } catch (error) {
     console.error("Failed to fetch similar tracks from Last.fm:", error);
@@ -66,7 +67,7 @@ export async function getSimilarTracks(
 export async function getArtistTopTracks(
   artist: string,
   apiKey: string,
-  limit: number = 10
+  limit: number = 10,
 ): Promise<LastFMSimilarTrack[]> {
   try {
     const client = getLastFMArtistClient(apiKey);
@@ -86,9 +87,10 @@ export async function getArtistTopTracks(
       artist: firstArtist,
       mbid: t.mbid,
       url: t.url,
-      imageUrl: t.image.find((img) => img.size === "medium")?.["#text"] ?? 
-                t.image.find((img) => img.size === "large")?.["#text"] ?? 
-                null,
+      imageUrl:
+        t.image.find((img) => img.size === "medium")?.["#text"] ??
+        t.image.find((img) => img.size === "large")?.["#text"] ??
+        null,
     }));
   } catch (error) {
     console.error("Failed to fetch artist top tracks from Last.fm:", error);

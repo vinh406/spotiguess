@@ -12,10 +12,7 @@ export default function LoadingSpinner({ size = "md", className = "" }: LoadingS
   };
 
   return (
-    <svg
-      className={`animate-spin ${sizeClasses[size]} ${className}`}
-      viewBox="0 0 24 24"
-    >
+    <svg className={`animate-spin ${sizeClasses[size]} ${className}`} viewBox="0 0 24 24">
       <circle
         className="opacity-25"
         cx="12"

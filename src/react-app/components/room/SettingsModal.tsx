@@ -13,11 +13,7 @@ interface SettingsModalProps {
   timePerRound: number;
   audioTime: number;
   isHost: boolean;
-  onSave: (settings: {
-    rounds: number;
-    timePerRound: number;
-    audioTime: number;
-  }) => void;
+  onSave: (settings: { rounds: number; timePerRound: number; audioTime: number }) => void;
   onClose: () => void;
 }
 

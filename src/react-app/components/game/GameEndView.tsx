@@ -56,7 +56,9 @@ export function GameEndView({
               {myScore.streak > 0 && (
                 <div className="text-center">
                   <p className="text-xs text-gray-400">Best Streak</p>
-                  <p className="text-xl sm:text-2xl font-bold text-yellow-400">🔥 {myScore.streak}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-yellow-400">
+                    🔥 {myScore.streak}
+                  </p>
                 </div>
               )}
             </div>
@@ -65,9 +67,7 @@ export function GameEndView({
 
         {/* Final Leaderboard */}
         <div className="px-3 sm:px-4 py-3">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">
-            Final Standings
-          </p>
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Final Standings</p>
           <div className="space-y-1.5">
             {sortedScores.map((score, index) => {
               const isMe = score.userId === myUserId;
@@ -79,8 +79,8 @@ export function GameEndView({
                     rank === 1
                       ? "bg-gradient-to-r from-yellow-500/20 to-yellow-600/10 border border-yellow-500/30"
                       : isMe
-                      ? "bg-green-500/20 border border-green-500/30"
-                      : "bg-gray-700/30"
+                        ? "bg-green-500/20 border border-green-500/30"
+                        : "bg-gray-700/30"
                   }`}
                 >
                   <div
@@ -88,10 +88,10 @@ export function GameEndView({
                       rank === 1
                         ? "bg-yellow-500 text-white"
                         : rank === 2
-                        ? "bg-gray-400 text-white"
-                        : rank === 3
-                        ? "bg-amber-600 text-white"
-                        : "bg-gray-600 text-gray-300"
+                          ? "bg-gray-400 text-white"
+                          : rank === 3
+                            ? "bg-amber-600 text-white"
+                            : "bg-gray-600 text-gray-300"
                     }`}
                   >
                     {rank}
@@ -99,9 +99,7 @@ export function GameEndView({
                   <div className="flex-1 min-w-0">
                     <p className="text-xs sm:text-sm font-semibold text-white truncate">
                       {score.username}
-                      {isMe && (
-                        <span className="ml-1.5 text-xs text-green-400">(You)</span>
-                      )}
+                      {isMe && <span className="ml-1.5 text-xs text-green-400">(You)</span>}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -121,11 +119,7 @@ export function GameEndView({
 
       {/* Action Buttons */}
       <div className="shrink-0 px-3 sm:px-4 py-3 border-t border-gray-700/50 space-y-2">
-        <Button
-          onClick={onPlayAgain}
-          className="w-full py-2.5 text-sm"
-          size="md"
-        >
+        <Button onClick={onPlayAgain} className="w-full py-2.5 text-sm" size="md">
           Play Again
         </Button>
         <Button

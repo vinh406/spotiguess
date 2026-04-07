@@ -1,6 +1,6 @@
 // Shared constants for the application
 
-import type { RoomSettings } from './types';
+import type { RoomSettings } from "./types";
 
 // ============================================================================
 // Default Room Settings
@@ -35,7 +35,7 @@ export const AUDIO_TIME_OPTIONS = [1, 3, 5, 10, 15] as const;
 // ============================================================================
 
 const ROOM_CODE_LENGTH = 8;
-const ROOM_CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const ROOM_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
 /**
  * Generates a cryptographically random room code.
@@ -46,9 +46,8 @@ const ROOM_CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 export function generateRoomCode(): string {
   const bytes = new Uint8Array(ROOM_CODE_LENGTH);
   crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => ROOM_CODE_CHARS[b % ROOM_CODE_CHARS.length]).join('');
+  return Array.from(bytes, (b) => ROOM_CODE_CHARS[b % ROOM_CODE_CHARS.length]).join("");
 }
-
 
 // ============================================================================
 // Input Validation

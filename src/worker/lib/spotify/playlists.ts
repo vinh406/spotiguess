@@ -19,9 +19,7 @@ export function parseSpotifyPlaylistLink(link: string): string | null {
   return null;
 }
 
-export async function getPlaylistMetadata(
-  playlistId: string,
-): Promise<Playlist | null> {
+export async function getPlaylistMetadata(playlistId: string): Promise<Playlist | null> {
   try {
     const spotifyUrlInfoModule = spotifyUrlInfo(fetch);
     const getDetails = spotifyUrlInfoModule.getDetails;
@@ -37,18 +35,12 @@ export async function getPlaylistMetadata(
       imageUrl: details.preview.image ?? undefined,
     };
   } catch (error) {
-    console.error(
-      `Failed to fetch playlist metadata for ${playlistId}:`,
-      error,
-    );
+    console.error(`Failed to fetch playlist metadata for ${playlistId}:`, error);
     return null;
   }
 }
 
-export async function getCurrentUserPlaylists(
-  userId: string,
-  env: Env,
-): Promise<Playlist[]> {
+export async function getCurrentUserPlaylists(userId: string, env: Env): Promise<Playlist[]> {
   const playlists: Playlist[] = [];
   const api = await getSpotifyClientForUser(userId, env);
 
@@ -77,9 +69,7 @@ export async function getCurrentUserPlaylists(
   return playlists;
 }
 
-export async function getPlaylistTracks(
-  playlistId: string,
-): Promise<Song[]> {
+export async function getPlaylistTracks(playlistId: string): Promise<Song[]> {
   try {
     const spotifyUrlInfoModule = spotifyUrlInfo(fetch);
     const getTracksFromUrl = spotifyUrlInfoModule.getTracks;

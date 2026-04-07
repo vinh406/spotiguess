@@ -9,7 +9,12 @@ import type {
   AnswerMessage,
 } from "../shared/types";
 import { MessageBuilders, broadcastToRoom, sendToSocket, RoomManager } from "./lib/websocket";
-import { MAX_USERNAME_LENGTH, MAX_CHAT_MESSAGE_LENGTH, ROOM_CODE_REGEX, SCORING } from "../shared/constants";
+import {
+  MAX_USERNAME_LENGTH,
+  MAX_CHAT_MESSAGE_LENGTH,
+  ROOM_CODE_REGEX,
+  SCORING,
+} from "../shared/constants";
 import { getPlaylistTracks } from "./lib/spotify/playlists";
 
 // Durable Object that manages WebSocket connections and room state for a single game instance
@@ -55,14 +60,8 @@ export class WebSocketHibernationServer extends DurableObject {
     });
   }
 
-  async webSocketMessage(
-    ws: WebSocket,
-    message: string | ArrayBuffer
-  ): Promise<void> {
-    const messageString =
-      typeof message === "string"
-        ? message
-        : new TextDecoder().decode(message);
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    const messageString = typeof message === "string" ? message : new TextDecoder().decode(message);
 
     let parsedMessage: IncomingMessage;
     try {
@@ -79,9 +78,7 @@ export class WebSocketHibernationServer extends DurableObject {
     await this.handleMessage(ws, parsedMessage);
   }
 
-  async webSocketClose(
-    ws: WebSocket,
-  ): Promise<void> {
+  async webSocketClose(ws: WebSocket): Promise<void> {
     const session = this.roomManager.getUserSession(ws);
     if (session) {
       await this.handleLeaveRoom(ws, session);
@@ -92,10 +89,7 @@ export class WebSocketHibernationServer extends DurableObject {
   // Message Router
   // ============================================================================
 
-  private async handleMessage(
-    ws: WebSocket,
-    message: IncomingMessage
-  ): Promise<void> {
+  private async handleMessage(ws: WebSocket, message: IncomingMessage): Promise<void> {
     switch (message.type) {
       case "join":
         await this.handleJoinRoom(ws, message as JoinMessage);
@@ -152,18 +146,12 @@ export class WebSocketHibernationServer extends DurableObject {
   // Message Handlers
   // ============================================================================
 
-  private async handleJoinRoom(
-    ws: WebSocket,
-    data: JoinMessage
-  ): Promise<void> {
+  private async handleJoinRoom(ws: WebSocket, data: JoinMessage): Promise<void> {
     const { username, room, userId, userImage } = data;
 
     // Validate required fields
     if (!username || !room || !userId) {
-      sendToSocket(
-        ws,
-        MessageBuilders.error("Missing required fields: username, room, or userId")
-      );
+      sendToSocket(ws, MessageBuilders.error("Missing required fields: username, room, or userId"));
       return;
     }
 
@@ -180,7 +168,10 @@ export class WebSocketHibernationServer extends DurableObject {
       return;
     }
     if (trimmedUsername.length > MAX_USERNAME_LENGTH) {
-      sendToSocket(ws, MessageBuilders.error(`Username must be ${MAX_USERNAME_LENGTH} characters or less`));
+      sendToSocket(
+        ws,
+        MessageBuilders.error(`Username must be ${MAX_USERNAME_LENGTH} characters or less`),
+      );
       return;
     }
 
@@ -224,13 +215,13 @@ export class WebSocketHibernationServer extends DurableObject {
       userId,
       room,
       isFirstPlayer,
-      roomUsers
+      roomUsers,
     );
     broadcastToRoom(this.roomManager.getSessions(), room, joinMessage);
 
     // Add player to scores if game is already in progress
     const gamePhase = this.roomManager.getCurrentGamePhase();
-    if (gamePhase !== 'lobby') {
+    if (gamePhase !== "lobby") {
       this.roomManager.addPlayerToScores(userId, trimmedUsername, userImage || undefined);
     }
 
@@ -251,8 +242,9 @@ export class WebSocketHibernationServer extends DurableObject {
 
     // Get remaining users BEFORE deletion (need to find new host from these)
     const sessions = this.roomManager.getSessions();
-    const remainingUserEntries = Array.from(sessions.entries())
-      .filter(([s, sess]) => s !== ws && sess.room === room);
+    const remainingUserEntries = Array.from(sessions.entries()).filter(
+      ([s, sess]) => s !== ws && sess.room === room,
+    );
 
     // Remove user session FIRST
     this.roomManager.removeUserSession(ws);
@@ -260,7 +252,7 @@ export class WebSocketHibernationServer extends DurableObject {
     // Handle host transfer - find the WebSocket of the first remaining user
     if (isHost && remainingUserEntries.length > 0) {
       const [newHostWs, newHostSession] = remainingUserEntries[0]!;
-      
+
       // Update the session object in the Map with new host status
       newHostSession.isHost = true;
       this.roomManager.setUserSession(newHostWs, newHostSession);
@@ -273,7 +265,7 @@ export class WebSocketHibernationServer extends DurableObject {
         "host_changed",
         "crown",
         `${newHostSession.username} is now the host`,
-        { newHostId: newHostSession.userId, newHostName: newHostSession.username }
+        { newHostId: newHostSession.userId, newHostName: newHostSession.username },
       );
       broadcastToRoom(this.roomManager.getSessions(), room, hostChangedMessage);
     }
@@ -286,17 +278,17 @@ export class WebSocketHibernationServer extends DurableObject {
     broadcastToRoom(this.roomManager.getSessions(), room, leaveMessage);
   }
 
-  private async handleChatMessage(
-    ws: WebSocket,
-    data: ChatMessage
-  ): Promise<void> {
+  private async handleChatMessage(ws: WebSocket, data: ChatMessage): Promise<void> {
     const session = this.validateSession(ws);
     if (!session) return;
 
     const trimmedContent = data.content?.trim() || "";
     if (!trimmedContent) return; // Ignore empty messages
     if (trimmedContent.length > MAX_CHAT_MESSAGE_LENGTH) {
-      sendToSocket(ws, MessageBuilders.error(`Message must be ${MAX_CHAT_MESSAGE_LENGTH} characters or less`));
+      sendToSocket(
+        ws,
+        MessageBuilders.error(`Message must be ${MAX_CHAT_MESSAGE_LENGTH} characters or less`),
+      );
       return;
     }
 
@@ -304,15 +296,13 @@ export class WebSocketHibernationServer extends DurableObject {
       trimmedContent,
       session.username,
       session.userId,
-      session.room
+      session.room,
     );
 
     broadcastToRoom(this.roomManager.getSessions(), session.room, message);
   }
 
-  private async handleReady(
-    ws: WebSocket,
-  ): Promise<void> {
+  private async handleReady(ws: WebSocket): Promise<void> {
     const session = this.validateSession(ws);
     if (!session) return;
 
@@ -323,36 +313,26 @@ export class WebSocketHibernationServer extends DurableObject {
 
     // Broadcast updated user list (includes ready state)
     const usersMessage = MessageBuilders.usersUpdated(
-      this.roomManager.getUsersInRoom(session.room)
+      this.roomManager.getUsersInRoom(session.room),
     );
     broadcastToRoom(this.roomManager.getSessions(), session.room, usersMessage);
   }
 
-  private async handleUpdateSettings(
-    ws: WebSocket,
-    data: UpdateSettingsMessage
-  ): Promise<void> {
+  private async handleUpdateSettings(ws: WebSocket, data: UpdateSettingsMessage): Promise<void> {
     const session = this.validateSession(ws);
     if (!session) return;
 
     if (!this.validateHost(ws, session)) return;
 
     const { rounds, timePerRound, audioTime } = data.payload || {};
-    const updatedSettings = this.roomManager.updateSettings(
-      rounds,
-      timePerRound,
-      audioTime
-    );
+    const updatedSettings = this.roomManager.updateSettings(rounds, timePerRound, audioTime);
 
     // Broadcast settings update
     const settingsMessage = MessageBuilders.settingsUpdated(updatedSettings);
     broadcastToRoom(this.roomManager.getSessions(), session.room, settingsMessage);
   }
 
-  private async handleUpdatePlaylist(
-    ws: WebSocket,
-    data: UpdatePlaylistMessage
-  ): Promise<void> {
+  private async handleUpdatePlaylist(ws: WebSocket, data: UpdatePlaylistMessage): Promise<void> {
     const session = this.validateSession(ws);
     if (!session) return;
 
@@ -368,9 +348,7 @@ export class WebSocketHibernationServer extends DurableObject {
     broadcastToRoom(this.roomManager.getSessions(), session.room, playlistMessage);
   }
 
-  private async handleStartGame(
-    ws: WebSocket,
-  ): Promise<void> {
+  private async handleStartGame(ws: WebSocket): Promise<void> {
     const session = this.validateSession(ws);
     if (!session) return;
 
@@ -399,14 +377,21 @@ export class WebSocketHibernationServer extends DurableObject {
 
     if (songs.length < settings.rounds) {
       this.roomManager.cancelStartGame();
-      sendToSocket(ws, MessageBuilders.error("Not enough songs available. Please set a larger Spotify playlist."));
+      sendToSocket(
+        ws,
+        MessageBuilders.error("Not enough songs available. Please set a larger Spotify playlist."),
+      );
       return;
     }
 
     this.roomManager.initGame(songs, settings.rounds, session.room);
     this.roomManager.setLastFmApiKey(this.spotifyEnv.LAST_FM_API_KEY);
 
-    const gameStartedMessage = MessageBuilders.gameStarted(settings.rounds, settings.timePerRound, settings.audioTime);
+    const gameStartedMessage = MessageBuilders.gameStarted(
+      settings.rounds,
+      settings.timePerRound,
+      settings.audioTime,
+    );
     broadcastToRoom(this.roomManager.getSessions(), session.room, gameStartedMessage);
 
     setTimeout(() => {
@@ -429,7 +414,7 @@ export class WebSocketHibernationServer extends DurableObject {
       roundData.choices,
       roundData.startTime,
       roundData.endTime,
-      roundData.duration
+      roundData.duration,
     );
     broadcastToRoom(this.roomManager.getSessions(), room, roundStartedMessage);
   }
@@ -438,11 +423,7 @@ export class WebSocketHibernationServer extends DurableObject {
     const roundThatJustEnded = this.roomManager.getCurrentRound();
     const { correctAnswer, scores } = this.roomManager.endRound();
 
-    const roundEndedMessage = MessageBuilders.roundEnded(
-      roundThatJustEnded,
-      correctAnswer,
-      scores
-    );
+    const roundEndedMessage = MessageBuilders.roundEnded(roundThatJustEnded, correctAnswer, scores);
     broadcastToRoom(this.roomManager.getSessions(), room, roundEndedMessage);
 
     const leaderboardMessage = MessageBuilders.leaderboardUpdate(scores);
@@ -471,26 +452,24 @@ export class WebSocketHibernationServer extends DurableObject {
 
     setTimeout(() => {
       this.roomManager.resetGame();
-      const usersMessage = MessageBuilders.usersUpdated(
-        this.roomManager.getUsersInRoom(room)
-      );
+      const usersMessage = MessageBuilders.usersUpdated(this.roomManager.getUsersInRoom(room));
       broadcastToRoom(this.roomManager.getSessions(), room, usersMessage);
     }, SCORING.GAME_END_DELAY);
   }
 
-  private async handleAnswer(
-    ws: WebSocket,
-    data: AnswerMessage
-  ): Promise<void> {
+  private async handleAnswer(ws: WebSocket, data: AnswerMessage): Promise<void> {
     const session = this.validateSession(ws);
     if (!session) return;
 
-    if (this.roomManager.getCurrentGamePhase() !== 'playing') {
+    if (this.roomManager.getCurrentGamePhase() !== "playing") {
       sendToSocket(ws, MessageBuilders.error("Game is not currently playing"));
       return;
     }
 
-    const { isCorrect, points, streak } = this.roomManager.recordAnswer(session.userId, data.choiceIndex);
+    const { isCorrect, points, streak } = this.roomManager.recordAnswer(
+      session.userId,
+      data.choiceIndex,
+    );
 
     const answerResultMessage = MessageBuilders.answerResult(isCorrect, points, streak);
     sendToSocket(ws, answerResultMessage);
@@ -499,6 +478,8 @@ export class WebSocketHibernationServer extends DurableObject {
     const leaderboardMessage = MessageBuilders.leaderboardUpdate(scores);
     broadcastToRoom(this.roomManager.getSessions(), session.room, leaderboardMessage);
 
-    this.roomManager.checkAndEndRoundEarly(session.room, () => this.handleEndRoundInternal(session.room));
+    this.roomManager.checkAndEndRoundEarly(session.room, () =>
+      this.handleEndRoundInternal(session.room),
+    );
   }
 }

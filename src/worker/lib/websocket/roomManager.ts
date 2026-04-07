@@ -1,4 +1,12 @@
-import type { UserSession, RoomSettings, Playlist, Song, SongChoice, PlayerScore, GamePhase } from "../../../shared/types";
+import type {
+  UserSession,
+  RoomSettings,
+  Playlist,
+  Song,
+  SongChoice,
+  PlayerScore,
+  GamePhase,
+} from "../../../shared/types";
 import { DEFAULT_ROOM_SETTINGS, SETTINGS_LIMITS, SCORING } from "../../../shared/constants";
 import { SessionManager } from "./sessionManager";
 import { GameEngine, type GameStateSnapshot } from "./gameEngine";
@@ -59,31 +67,27 @@ export class RoomManager {
     return this.roomSettings;
   }
 
-  updateSettings(
-    rounds?: number,
-    timePerRound?: number,
-    audioTime?: number
-  ): RoomSettings {
+  updateSettings(rounds?: number, timePerRound?: number, audioTime?: number): RoomSettings {
     if (rounds !== undefined) {
       this.roomSettings.rounds = Math.max(
         SETTINGS_LIMITS.rounds.min,
-        Math.min(SETTINGS_LIMITS.rounds.max, rounds)
+        Math.min(SETTINGS_LIMITS.rounds.max, rounds),
       );
     }
     if (timePerRound !== undefined) {
       this.roomSettings.timePerRound = Math.max(
         SETTINGS_LIMITS.timePerRound.min,
-        Math.min(SETTINGS_LIMITS.timePerRound.max, timePerRound)
+        Math.min(SETTINGS_LIMITS.timePerRound.max, timePerRound),
       );
     }
     if (audioTime !== undefined) {
       this.roomSettings.audioTime = Math.max(
         SETTINGS_LIMITS.audioTime.min,
-        Math.min(SETTINGS_LIMITS.audioTime.max, audioTime)
+        Math.min(SETTINGS_LIMITS.audioTime.max, audioTime),
       );
     }
     if (this.roomSettings.audioTime > this.roomSettings.timePerRound) {
-        this.roomSettings.audioTime = this.roomSettings.timePerRound;
+      this.roomSettings.audioTime = this.roomSettings.timePerRound;
     }
     return this.roomSettings;
   }
@@ -111,15 +115,23 @@ export class RoomManager {
   }
 
   initGame(songs: Song[], rounds: number, room: string): void {
-    const players = this.getUsersInRoom(room).map(u => ({
-        userId: u.userId,
-        username: u.username,
-        userImage: u.userImage ?? undefined
+    const players = this.getUsersInRoom(room).map((u) => ({
+      userId: u.userId,
+      username: u.username,
+      userImage: u.userImage ?? undefined,
     }));
     this.gameEngine.initGame(songs, rounds, players);
   }
 
-  async startRound(endRoundCallback: () => void): Promise<{ song: Song; choices: SongChoice[]; round: number; totalRounds: number; startTime: number; endTime: number; duration: number }> {
+  async startRound(endRoundCallback: () => void): Promise<{
+    song: Song;
+    choices: SongChoice[];
+    round: number;
+    totalRounds: number;
+    startTime: number;
+    endTime: number;
+    duration: number;
+  }> {
     const roundData = await this.gameEngine.startRound(this.roomSettings.timePerRound);
 
     if (this.roundTimer) clearTimeout(this.roundTimer);
@@ -129,7 +141,7 @@ export class RoomManager {
   }
 
   checkAndEndRoundEarly(room: string, endRoundCallback: () => void): boolean {
-    const playersInRoom = this.getUsersInRoom(room).map(u => u.userId);
+    const playersInRoom = this.getUsersInRoom(room).map((u) => u.userId);
     if (this.gameEngine.allPlayersAnswered(playersInRoom)) {
       const state = this.gameEngine.getGameState();
       const timeElapsed = Date.now() - state.roundStartTime;
@@ -146,14 +158,17 @@ export class RoomManager {
     return false;
   }
 
-  recordAnswer(userId: string, choiceIndex: number): { isCorrect: boolean; points: number; streak: number } {
+  recordAnswer(
+    userId: string,
+    choiceIndex: number,
+  ): { isCorrect: boolean; points: number; streak: number } {
     return this.gameEngine.recordAnswer(userId, choiceIndex, this.roomSettings.timePerRound);
   }
 
   endRound(): { correctAnswer: SongChoice; scores: PlayerScore[] } {
     if (this.roundTimer) {
-        clearTimeout(this.roundTimer);
-        this.roundTimer = null;
+      clearTimeout(this.roundTimer);
+      this.roundTimer = null;
     }
     return this.gameEngine.endRound();
   }
@@ -171,13 +186,13 @@ export class RoomManager {
   }
 
   tryStartGame(): boolean {
-    if (this.getCurrentGamePhase() !== 'lobby') return false;
-    this.gameEngine.setPhase('starting');
+    if (this.getCurrentGamePhase() !== "lobby") return false;
+    this.gameEngine.setPhase("starting");
     return true;
   }
 
   cancelStartGame(): void {
-    this.gameEngine.setPhase('lobby');
+    this.gameEngine.setPhase("lobby");
   }
 
   getScores(): PlayerScore[] {
@@ -190,11 +205,11 @@ export class RoomManager {
 
   getUnifiedRoomState(room: string): UnifiedRoomState {
     return {
-        room,
-        settings: this.roomSettings,
-        playlist: this.roomPlaylist,
-        users: this.getUsersInRoom(room),
-        game: this.gameEngine.getGameState()
+      room,
+      settings: this.roomSettings,
+      playlist: this.roomPlaylist,
+      users: this.getUsersInRoom(room),
+      game: this.gameEngine.getGameState(),
     };
   }
 }

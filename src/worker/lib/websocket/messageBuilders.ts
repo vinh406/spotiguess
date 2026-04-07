@@ -35,16 +35,20 @@ export const MessageBuilders = {
   unifiedRoomState(state: UnifiedRoomState): UnifiedRoomStateMessage {
     // Convert Map to Record for JSON serialization if they are Maps in the engine but Records in the type
     const serializedGame = {
-        ...state.game,
-        scores: Object.fromEntries(state.game.scores instanceof Map ? state.game.scores : Object.entries(state.game.scores)),
-        answers: Object.fromEntries(state.game.answers instanceof Map ? state.game.answers : Object.entries(state.game.answers)),
+      ...state.game,
+      scores: Object.fromEntries(
+        state.game.scores instanceof Map ? state.game.scores : Object.entries(state.game.scores),
+      ),
+      answers: Object.fromEntries(
+        state.game.answers instanceof Map ? state.game.answers : Object.entries(state.game.answers),
+      ),
     };
 
     return {
       type: "unified_room_state",
       state: {
-          ...state,
-          game: serializedGame as unknown as GameStateSnapshot,
+        ...state,
+        game: serializedGame as unknown as GameStateSnapshot,
       },
       timestamp: Date.now(),
     };
@@ -55,7 +59,7 @@ export const MessageBuilders = {
     userId: string,
     room: string,
     isHost: boolean,
-    users: UserSession[]
+    users: UserSession[],
   ): UserJoinedMessage {
     return {
       type: "user_joined",
@@ -68,12 +72,7 @@ export const MessageBuilders = {
     };
   },
 
-  userLeft(
-    username: string,
-    userId: string,
-    room: string,
-    users: UserSession[]
-  ): UserLeftMessage {
+  userLeft(username: string, userId: string, room: string, users: UserSession[]): UserLeftMessage {
     return {
       type: "user_left",
       username,
@@ -112,12 +111,10 @@ export const MessageBuilders = {
     eventType: string,
     icon: string,
     content: string,
-    data: Record<string, unknown> = {}
+    data: Record<string, unknown> = {},
   ): GameEventMessage {
     const systemCategories = ["ready", "settings", "host", "playlist"];
-    const category = systemCategories.some((c) => eventType.includes(c))
-      ? "system"
-      : "game";
+    const category = systemCategories.some((c) => eventType.includes(c)) ? "system" : "game";
 
     return {
       type: "game_event",
@@ -132,12 +129,7 @@ export const MessageBuilders = {
     };
   },
 
-  chatMessage(
-    content: string,
-    username: string,
-    userId: string,
-    room: string
-  ): ChatMessage {
+  chatMessage(content: string, username: string, userId: string, room: string): ChatMessage {
     return {
       type: "message",
       content,
@@ -165,17 +157,17 @@ export const MessageBuilders = {
     choices: SongChoice[],
     startTime: number,
     endTime: number,
-    duration: number
+    duration: number,
   ): RoundStartedMessage {
     return {
       type: "round_started",
       round,
       totalRounds,
       song: {
-        id: '',
-        title: '',
-        artist: '',
-        album: '',
+        id: "",
+        title: "",
+        artist: "",
+        album: "",
         previewUrl: song.previewUrl,
         albumImageUrl: song.albumImageUrl,
         duration: 0,
@@ -188,11 +180,7 @@ export const MessageBuilders = {
     };
   },
 
-  roundEnded(
-    round: number,
-    correctAnswer: SongChoice,
-    scores: PlayerScore[]
-  ): RoundEndedMessage {
+  roundEnded(round: number, correctAnswer: SongChoice, scores: PlayerScore[]): RoundEndedMessage {
     return {
       type: "round_ended",
       round,

@@ -1,9 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import type {
-  IncomingMessage,
-  OutgoingMessage,
-  JoinMessage,
-} from "../../shared/types";
+import type { IncomingMessage, OutgoingMessage, JoinMessage } from "../../shared/types";
 
 interface GameSocketOptions {
   username: string;
@@ -36,10 +32,12 @@ export function useGameSocket({
 
   const send = useCallback((message: Partial<IncomingMessage>) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        ...message,
-        timestamp: Date.now(),
-      }));
+      wsRef.current.send(
+        JSON.stringify({
+          ...message,
+          timestamp: Date.now(),
+        }),
+      );
     } else {
       console.warn("Cannot send message: WebSocket is not open", message);
     }
@@ -85,7 +83,7 @@ export function useGameSocket({
         timestamp: Date.now(),
       };
       ws.send(JSON.stringify(joinMsg));
-      
+
       onConnect?.();
     };
 
@@ -108,7 +106,9 @@ export function useGameSocket({
         if (reconnectAttempts.current < maxAttempts) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
           reconnectAttempts.current += 1;
-          console.log(`[GameSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current}/${maxAttempts})`);
+          console.log(
+            `[GameSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current}/${maxAttempts})`,
+          );
           reconnectTimer.current = setTimeout(() => {
             setReconnectKey((k) => k + 1);
           }, delay);
@@ -136,7 +136,17 @@ export function useGameSocket({
       }
       ws.close();
     };
-  }, [username, room, userId, userImage, reconnectKey, onMessage, onConnect, onDisconnect, onError]);
+  }, [
+    username,
+    room,
+    userId,
+    userImage,
+    reconnectKey,
+    onMessage,
+    onConnect,
+    onDisconnect,
+    onError,
+  ]);
 
   return {
     isConnected,

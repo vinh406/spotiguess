@@ -14,7 +14,7 @@ function AppContent() {
         <div className="text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
             <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
             </svg>
           </div>
           <LoadingSpinner size="lg" className="text-green-500 mx-auto" />
@@ -26,18 +26,12 @@ function AppContent() {
 
   return (
     <Routes>
-      <Route
-        path="/"
-        element={isAuthenticated ? <HomePage /> : <Navigate to="/login" replace />}
-      />
+      <Route path="/" element={isAuthenticated ? <HomePage /> : <Navigate to="/login" replace />} />
       <Route
         path="/login"
         element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
       />
-      <Route
-        path="/room/:roomName"
-        element={<RoomPage />}
-      />
+      <Route path="/room/:roomName" element={<RoomPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

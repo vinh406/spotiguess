@@ -100,9 +100,7 @@ app.get("/ws/:room?", async (c) => {
   const room = c.req.param("room") || "general";
 
   // Get the Durable Object - use room name to create isolated chat rooms
-  const durableObjectId = c.env.WEBSOCKET_HIBERNATION_SERVER.idFromName(
-    `chat-room-${room}`,
-  );
+  const durableObjectId = c.env.WEBSOCKET_HIBERNATION_SERVER.idFromName(`chat-room-${room}`);
   const durableObject = c.env.WEBSOCKET_HIBERNATION_SERVER.get(durableObjectId);
 
   // Forward the WebSocket upgrade request to the Durable Object
