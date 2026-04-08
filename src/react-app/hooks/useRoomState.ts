@@ -18,6 +18,8 @@ import type {
   RoomSettings,
   UnifiedRoomStateMessage,
   VoteUpdateMessage,
+  RoundStartedMessage,
+  RoundEndedMessage,
 } from "../../shared/types";
 import { DEFAULT_ROOM_SETTINGS } from "../../shared/constants";
 import { useGameSocket } from "./useGameSocket";
@@ -110,6 +112,49 @@ type RoomAction =
   | { type: "LOCAL_ANSWER"; choiceIndex: number }
   | { type: "TOGGLE_READY" }
   | { type: "RESET_TO_LOBBY" };
+
+// Adjust timer-related fields in messages based on the offset between server and client time
+function adjustMessageTimes(message: OutgoingMessage, offset: number): OutgoingMessage {
+  switch (message.type) {
+    case "unified_room_state": {
+      const msg = message as UnifiedRoomStateMessage;
+      const adjustedState: UnifiedRoomState = {
+        ...msg.state,
+        game: {
+          ...msg.state.game,
+          roundEndTime: msg.state.game.roundEndTime - offset,
+          voteEndsAt: msg.state.game.voteEndsAt ? msg.state.game.voteEndsAt - offset : null,
+        },
+      };
+      return { ...msg, state: adjustedState };
+    }
+    case "round_started": {
+      const msg = message as RoundStartedMessage;
+      return {
+        ...msg,
+        startTime: msg.startTime - offset,
+        endTime: msg.endTime - offset,
+      };
+    }
+    case "round_ended": {
+      const msg = message as RoundEndedMessage;
+      return {
+        ...msg,
+        voteEndsAt: msg.voteEndsAt ? msg.voteEndsAt - offset : undefined,
+        nextRoundAt: msg.nextRoundAt ? msg.nextRoundAt - offset : undefined,
+      };
+    }
+    case "vote_update": {
+      const msg = message as VoteUpdateMessage;
+      return {
+        ...msg,
+        voteEndsAt: msg.voteEndsAt - offset,
+      };
+    }
+    default:
+      return message;
+  }
+}
 
 function roomReducer(state: RoomState, action: RoomAction): RoomState {
   switch (action.type) {
@@ -465,9 +510,18 @@ export function useRoomState() {
   }, [isLoading, isAuthenticated, user]);
 
   const onMessage = useCallback(
-    (message: OutgoingMessage) => {
+    (serverMessage: OutgoingMessage) => {
       const currentUserId = state.ui.currentUser?.userId || "";
 
+      // Compute offset between server time and client time at message receipt
+      const serverTimestamp = serverMessage.timestamp;
+      const clientNow = Date.now();
+      const offset = serverTimestamp - clientNow;
+
+      // Adjust timer values in the message to compensate for clock differences
+      const message = adjustMessageTimes(serverMessage, offset);
+
+      // Dispatch the (possibly adjusted) message
       switch (message.type) {
         case "unified_room_state":
           dispatch({
