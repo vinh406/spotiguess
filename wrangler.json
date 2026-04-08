@@ -40,6 +40,7 @@
   // 	"SPOTIFY_CLIENT_SECRET": "your-spotify-client-secret",
   // 	"LAST_FM_API_KEY": "your-lastfm-api-key"
   // },
+  "keep_vars": true,
   "durable_objects": {
     "bindings": [
       {
