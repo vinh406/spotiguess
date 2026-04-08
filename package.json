@@ -11,7 +11,7 @@
     "dev": "vite --host 127.0.0.1",
     "lint": "oxlint .",
     "fmt": "oxfmt",
-    "preview": "npm run build && wrangler dev",
+    "preview": "npm run build && wrangler dev --ip 127.0.0.1",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push"

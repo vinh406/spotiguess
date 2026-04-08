@@ -24,30 +24,36 @@ Spotiguess is a multiplayer Spotify song guessing game where players create room
 
 ### External Services
 
-- **Spotify Web API**: Authentication, top tracks, song metadata
-- **Spotify Preview URLs**: 30-second previews for playback
+- **Spotify Web API**: Authentication, playlists, track metadata, 30-second previews
+- **Last.fm API**: Smart decoy choices using similar tracks data
 
 ## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  Client Layer                                           │
-│  ├─ React Frontend (Vite + Tailwind)                   │
+│  ├─ React Frontend (Vite + Tailwind)                  │
 │  └─ WebSocket Client (native API)                      │
 └─────────────────────────────────────────────────────────┘
-                        ↓ HTTP/WS
+                         ↓ HTTP/WS
 ┌─────────────────────────────────────────────────────────┐
 │  Cloudflare Workers                                     │
 │  ├─ Hono Backend (API routes)                          │
 │  ├─ WebSocket Durable Object (real-time)               │
 │  └─ better-auth (Spotify OAuth)                        │
 └─────────────────────────────────────────────────────────┘
-                        ↓
+                         ↓
 ┌─────────────────────────────────────────────────────────┐
 │  Database (PostgreSQL via Hyperdrive)                   │
 │  ├─ Users & Sessions (better-auth)                     │
 │  ├─ Spotify Accounts (OAuth tokens)                    │
 │  └─ Game Results (persisted at game end)               │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│  External APIs                                          │
+│  ├─ Spotify Web API (playlists, tracks, previews)      │
+│  └─ Last.fm API (similar tracks for decoy choices)     │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -75,33 +81,34 @@ Room Created → Players Join → Game Starts → Rounds Play → Game Ends → 
 Rooms are managed entirely in the Durable Object:
 
 - **Room Code**: 8-character shareable code (e.g., "ABC123XYZ")
-- **Host**: First player to join becomes host
-- **Players**: Tracked with ready status
-- **Settings**: Configurable rounds and time per round
+- **Host**: First player to join becomes host, controls settings and game start
+- **Players**: Tracked with ready status, userId, username, avatar
+- **Settings**: Configurable rounds, time per round, and audio playback time
 - **Playlist**: Selected by host before game starts
 
 ### Game Flow
 
-1. **Lobby Phase** (Current Implementation)
+1. **Lobby Phase**
    - Host creates room and shares code
    - Players join via WebSocket
    - Host configures settings and playlist
    - Players mark ready
    - Host starts game
 
-2. **Game Phase** (Planned)
-   - Fetch top tracks from all players' Spotify
-   - Create blend from combined pool
+2. **Game Phase**
+   - Fetch tracks from selected Spotify playlist
+   - Shuffle and select tracks for rounds
+   - Generate smart decoy choices (using Last.fm similar tracks when available)
    - Play rounds with song previews
    - Validate guesses in real-time
-   - Award points based on speed and accuracy
+   - Award points based on speed and streak
    - Show leaderboard after each round
 
-3. **End Phase** (Planned)
+3. **End Phase**
    - Calculate final scores
-   - Determine winner
-   - Save results to database
-   - Clear in-memory state
+   - Voting for play again
+   - Auto-reset to lobby or continue game
+   - (Future: Save results to database)
 
 ## Current Implementation Status
 
@@ -110,12 +117,32 @@ Rooms are managed entirely in the Durable Object:
 **Backend (Durable Object)**
 
 - WebSocket connection management with hibernation
-- Player session tracking (username, userId, host status, ready status)
-- Room settings management (maxPlayers, rounds, timePerRound)
-- Playlist selection
+- Player session tracking (username, userId, host status, ready status, avatar)
+- Room settings management (rounds, timePerRound, audioTime)
+- Playlist selection with Spotify integration
 - Host permission validation
 - Real-time message broadcasting
 - Game event system with styled notifications
+- Room code generation (cryptographically random 8-char codes)
+- Game state machine (lobby → starting → playing → roundEnd)
+- Round management with countdown timer
+- Answer recording and early round end when all players answer
+- Scoring system with speed bonus and streak bonus
+- Leaderboard updates
+- Play again voting system
+- Unified room state synchronization for reconnections
+
+**Backend (Spotify Integration)**
+
+- OAuth token management with refresh
+- Playlist track fetching
+- Preview URL handling
+
+**Backend (Last.fm Integration)**
+
+- Similar tracks fetching for smart decoy choices
+- Artist top tracks fallback for decoy generation
+- Caching of similar tracks per song
 
 **Frontend (Room Page)**
 
@@ -123,38 +150,37 @@ Rooms are managed entirely in the Durable Object:
 - Host controls (settings, playlist, start game)
 - Player ready toggle
 - Real-time updates via WebSocket
-- Settings modal (rounds, time per round)
+- Settings modal (rounds, time per round, audio time)
 - Playlist selection modal
 - Chat integration
+- Game view with countdown timer
+- Song choice buttons
+- Audio preview with volume control
+- Answer submission and feedback
+- Round end view with correct answer reveal
+- Leaderboard display
+- Play again voting UI
+- Auto-return to lobby handling
+
+**Frontend (Auth)**
+
+- Spotify OAuth login flow
+- Session persistence
+- User profile display
 
 **Shared**
 
-- TypeScript types for WebSocket messages
-- Constants for default settings and limits
-- Mock playlists for UI demonstration
+- TypeScript types for all WebSocket messages
+- Constants for default settings, limits, and scoring
+- Room code generation utilities
 
 ### 🚧 In Progress
 
-- Room code generation (currently using URL params)
-- Game state initialization
-- Spotify API integration
+- Database persistence for game results
+- Team mode
+- Spectator mode
 
 ### 📋 Planned Features
-
-**Game Mechanics**
-
-- Round flow with song playback
-- Guess validation (fuzzy matching)
-- Scoring system (base + speed bonus)
-- Leaderboard updates
-- Game end with results persistence
-
-**Spotify Integration**
-
-- Fetch user's top tracks
-- Blend algorithm (combine and shuffle tracks)
-- Song preview playback
-- Album art display
 
 **Database**
 
@@ -163,42 +189,69 @@ Rooms are managed entirely in the Durable Object:
 
 **Enhanced Features**
 
-- Team mode
-- Spectator mode
-- Chat history
-- Player statistics
-- Achievements
+- Player statistics and achievements
+- Chat history persistence
+- Custom playlist blending (top tracks from all players)
 
 ## WebSocket Events
 
 ### Client → Server
 
-- `join`: Join a room with username and userId
-- `leave`: Leave the current room
-- `chat_message`: Send a chat message
-- `ready`: Toggle ready status
-- `update_settings`: Update room settings (host only)
-- `update_playlist`: Update selected playlist (host only)
-- `start_game`: Start the game (host only)
+| Event | Description |
+|-------|-------------|
+| `join` | Join a room with username, room code, userId, and optional avatar |
+| `leave` | Leave the current room |
+| `chat_message` | Send a chat message |
+| `ready` | Toggle ready status |
+| `update_settings` | Update room settings (host only) |
+| `update_playlist` | Update selected playlist (host only) |
+| `start_game` | Start the game (host only) |
+| `answer` | Submit an answer choice |
+| `vote_play_again` | Vote yes/no to play again |
 
 ### Server → Client
 
-- `user_joined`: Player joined the room
-- `user_left`: Player left the room
-- `users_updated`: Player list changed
-- `room_created`: Room was created (first player)
-- `room_state`: Current room state (new player)
-- `settings_updated`: Settings were changed
-- `playlist_updated`: Playlist was changed
-- `game_event`: Game lifecycle events (styled notifications)
-- `error`: Error message
+| Event | Description |
+|-------|-------------|
+| `user_joined` | Player joined the room |
+| `user_left` | Player left the room |
+| `users_updated` | Player list changed |
+| `room_created` | Room was created (first player) |
+| `unified_room_state` | Full room state for new/reconnecting players |
+| `settings_updated` | Settings were changed |
+| `playlist_updated` | Playlist was changed |
+| `game_event` | Game lifecycle events (styled notifications) |
+| `game_started` | Game is starting with round info |
+| `round_started` | New round starting with song and choices |
+| `round_ended` | Round ended with correct answer and scores |
+| `answer_result` | Result of player's answer submission |
+| `leaderboard_update` | Updated scores/leaderboard |
+| `vote_update` | Vote status update |
+| `error` | Error message |
 
-### Game Event Categories
+## Scoring System
 
-- `system`: Join/leave, ready status, host changes
-- `game`: Game start, round start/end, game end
-- `scoring`: Points awarded, correct guesses (planned)
-- `error`: Error notifications
+Points are calculated based on:
+
+- **Base Points**: 100 per correct answer
+- **Speed Bonus**: Up to 100 extra points based on response time
+- **Streak Bonus**: 10 extra points per consecutive correct answer
+
+```
+score = BASE_POINTS + speedBonus + (streak * STREAK_BONUS)
+speedRatio = 1 - (timeTaken / timePerRound)
+speedBonus = MAX_SPEED_BONUS * max(0, speedRatio)
+```
+
+## Game Phases
+
+```
+lobby → starting → playing → roundEnd → [playing | lobby]
+                                ↓
+                              lobby (if vote fails or timeout)
+                                ↓
+                              lobby (if vote succeeds and new game starts)
+```
 
 ## Database Schema
 
@@ -206,16 +259,17 @@ Rooms are managed entirely in the Durable Object:
 
 ```sql
 -- Users (better-auth)
-user: id, name, email, image, createdAt, updatedAt
+user: id, name, email, emailVerified, image, createdAt, updatedAt
 
 -- Sessions (better-auth)
-session: id, userId, token, expiresAt, createdAt
+session: id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId
 
--- Accounts (better-auth)
-account: id, userId, providerId, accessToken, refreshToken, expiresAt
+-- Accounts (better-auth - Spotify OAuth tokens)
+account: id, accountId, providerId, userId, accessToken, refreshToken, idToken,
+         accessTokenExpiresAt, refreshTokenExpiresAt, scope, password, createdAt, updatedAt
 
 -- Verification (better-auth)
-verification: id, identifier, value, expiresAt
+verification: id, identifier, value, expiresAt, createdAt, updatedAt
 ```
 
 ### Planned
@@ -226,7 +280,7 @@ songs: id, spotifyTrackId, title, artist, album, albumArtUrl, previewUrl, durati
 
 -- Game Results (persisted at game end)
 gameResults: id, roomCode, totalRounds, playerCount, startedAt, completedAt,
-            winnerId, winnerName, finalScores (JSONB), songsUsed (JSONB)
+             winnerId, winnerName, finalScores (JSONB), songsUsed (JSONB)
 ```
 
 ## Key Design Decisions
@@ -235,7 +289,9 @@ gameResults: id, roomCode, totalRounds, playerCount, startedAt, completedAt,
 2. **WebSocket-First**: All room/game operations via WebSocket, HTTP only for auth and user data
 3. **Host Control**: First player is host, controls settings and game start
 4. **Real-time Updates**: All state changes broadcast to room members immediately
-5. **Spotify Integration**: Use preview URLs for playback, fetch top tracks for blending
+5. **Spotify Integration**: Use preview URLs for playback, fetch playlist tracks for gameplay
+6. **Smart Decoys**: Last.fm API provides similar tracks for more challenging wrong answers
+7. **Unified State**: Single `unified_room_state` message syncs full state for joins/reconnects
 
 ## Development Phases
 
@@ -256,10 +312,11 @@ gameResults: id, roomCode, totalRounds, playerCount, startedAt, completedAt,
 
 ### Phase 3: Game Mechanics ✅
 
-- Game state initialization
+- Game state machine implementation
 - Round flow with song playback
-- Scoring system
-- Leaderboard
+- Scoring system with speed/streak bonuses
+- Leaderboard updates
+- Play again voting
 
 ### Phase 4: Spotify Integration
 
@@ -286,19 +343,38 @@ gameResults: id, roomCode, totalRounds, playerCount, startedAt, completedAt,
 ```
 spotiguess/
 ├── src/
-│   ├── react-app/           # Frontend
-│   │   ├── components/      # React components
-│   │   ├── contexts/        # React contexts
-│   │   ├── pages/           # Page components
-│   │   └── App.tsx
-│   ├── worker/              # Backend
-│   │   ├── db/              # Database schema
-│   │   ├── lib/             # Libraries (better-auth)
-│   │   ├── index.ts         # Hono app entry
+│   ├── react-app/                    # Frontend
+│   │   ├── components/
+│   │   │   ├── common/              # Shared UI components
+│   │   │   ├── game/                # Game view components
+│   │   │   ├── room/                # Room lobby components
+│   │   │   └── ui/                   # Base UI components
+│   │   ├── contexts/                # React contexts (Auth)
+│   │   ├── hooks/                   # Custom hooks (useRoomState, useGameSocket, useAuth)
+│   │   ├── pages/                   # Page components
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── worker/                      # Backend
+│   │   ├── db/
+│   │   │   └── schema.ts           # Drizzle schema
+│   │   ├── lib/
+│   │   │   ├── better-auth/         # Auth configuration
+│   │   │   ├── lastfm/              # Last.fm API client
+│   │   │   ├── spotify/             # Spotify API client
+│   │   │   └── websocket/           # WebSocket handlers
+│   │   │       ├── index.ts         # Exports
+│   │   │       ├── broadcast.ts     # Broadcasting utilities
+│   │   │       ├── gameEngine.ts    # Game logic
+│   │   │       ├── messageBuilders.ts
+│   │   │       ├── roomManager.ts   # Room state management
+│   │   │       └── sessionManager.ts
+│   │   ├── index.ts                # Hono app entry
 │   │   └── websocketDurableObject.ts
-│   └── shared/              # Shared types and constants
-├── drizzle/                 # Database migrations
-├── wrangler.json            # Cloudflare config
+│   └── shared/                      # Shared types and constants
+│       ├── types.ts
+│       └── constants.ts
+├── drizzle/                         # Database migrations
+├── wrangler.json                    # Cloudflare config
 └── package.json
 ```
 
@@ -309,3 +385,5 @@ spotiguess/
 - [better-auth](https://better-auth.com/docs/introduction)
 - [Drizzle ORM](https://orm.drizzle.team/docs/overview)
 - [Hono](https://hono.dev/docs/)
+- [Spotify Web API](https://developer.spotify.com/documentation/web-api/)
+- [Last.fm API](https://www.last.fm/api/)
