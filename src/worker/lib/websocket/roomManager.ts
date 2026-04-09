@@ -10,7 +10,7 @@ import type {
 } from "../../../shared/types";
 import { DEFAULT_ROOM_SETTINGS, SETTINGS_LIMITS, SCORING } from "../../../shared/constants";
 import { SessionManager } from "./sessionManager";
-import { GameEngine } from "./gameEngine";
+import { GameEngine } from "./game/GameEngine";
 
 export class RoomManager {
   private sessionManager: SessionManager;
