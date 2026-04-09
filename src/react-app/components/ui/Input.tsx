@@ -1,7 +1,7 @@
 import { Input as BaseInput } from "@base-ui/react/input";
 import { forwardRef, type InputHTMLAttributes } from "react";
 
-export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
+interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
   error?: boolean;
   variant?: "primary" | "blue";
   size?: "sm" | "md" | "lg";

@@ -1,7 +1,7 @@
 import { Slider as BaseSlider } from "@base-ui/react/slider";
 import { forwardRef, type ReactNode } from "react";
 
-export interface SliderProps {
+interface SliderProps {
   value?: number;
   defaultValue?: number;
   min?: number;
