@@ -1,4 +1,4 @@
-import type { GamePhase, Song, SongChoice, PlayerScore } from "../../../shared/types";
+import type { GamePhase, Song, SongChoice, PlayerScore, GameStateSnapshot } from "../../../shared/types";
 import { SCORING } from "../../../shared/constants";
 import { getSimilarTracks, getArtistTopTracks, type LastFMSimilarTrack } from "../lastfm/client";
 
@@ -13,22 +13,6 @@ function calculateScore(
   const speedBonus = Math.round(SCORING.MAX_SPEED_BONUS * Math.max(0, speedRatio));
   const streakBonus = streak * SCORING.STREAK_BONUS;
   return SCORING.BASE_POINTS + speedBonus + streakBonus;
-}
-
-export interface GameStateSnapshot {
-  phase: GamePhase;
-  currentRound: number;
-  totalRounds: number;
-  songs: Song[];
-  currentSongIndex: number;
-  choices: SongChoice[];
-  scores: Record<string, PlayerScore>;
-  answers: Record<string, { choiceIndex: number; answeredAt: number }>;
-  roundStartTime: number;
-  roundEndTime: number;
-  roundDuration: number;
-  votes: Record<string, boolean>;
-  voteEndsAt: number | null;
 }
 
 export class GameEngine {

@@ -6,18 +6,11 @@ import type {
   SongChoice,
   PlayerScore,
   GamePhase,
+  UnifiedRoomState,
 } from "../../../shared/types";
 import { DEFAULT_ROOM_SETTINGS, SETTINGS_LIMITS, SCORING } from "../../../shared/constants";
 import { SessionManager } from "./sessionManager";
-import { GameEngine, type GameStateSnapshot } from "./gameEngine";
-
-interface UnifiedRoomState {
-  room: string;
-  settings: RoomSettings;
-  playlist: Playlist | null;
-  users: UserSession[];
-  game: GameStateSnapshot;
-}
+import { GameEngine } from "./gameEngine";
 
 export class RoomManager {
   private sessionManager: SessionManager;

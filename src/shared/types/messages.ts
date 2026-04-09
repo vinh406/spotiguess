@@ -1,108 +1,8 @@
-// Shared type definitions for WebSocket messages and game state
+import { UserSession, PlayerScore } from "./player";
+import { RoomSettings, Playlist, UnifiedRoomState } from "./room";
+import { Song, SongChoice } from "./game";
 
-// ============================================================================
-// Player & User Types
-// ============================================================================
-
-export interface Player {
-  userId: string;
-  username: string;
-  userImage: string | null;
-  isReady: boolean;
-  isHost: boolean;
-}
-
-export interface UserSession {
-  username: string;
-  room: string;
-  userId: string;
-  userImage: string | null;
-  isHost: boolean;
-  isReady: boolean;
-  joinedAt: number;
-}
-
-// ============================================================================
-// Room & Game Types
-// ============================================================================
-
-export interface RoomSettings {
-  rounds: number;
-  timePerRound: number;
-  audioTime: number;
-}
-
-export interface Playlist {
-  id: string;
-  name: string;
-  description?: string;
-  trackCount: number;
-  imageUrl?: string;
-}
-
-// ============================================================================
-// Game Types
-// ============================================================================
-
-export interface Song {
-  id: string;
-  title: string;
-  artist: string;
-  album: string;
-  albumImageUrl?: string;
-  previewUrl?: string; // Spotify preview URL
-  duration: number; // in milliseconds
-}
-
-export interface SongChoice {
-  index: number;
-  title: string;
-  artist: string;
-  albumImageUrl?: string;
-  isCorrect: boolean;
-}
-
-export interface PlayerScore {
-  userId: string;
-  username: string;
-  userImage?: string;
-  score: number;
-  streak: number; // consecutive correct answers
-}
-
-// Game phase types
-export type GamePhase = "lobby" | "starting" | "playing" | "roundEnd";
-
-export interface GameStateSnapshot {
-  phase: GamePhase;
-  currentRound: number;
-  totalRounds: number;
-  songs: Song[];
-  currentSongIndex: number;
-  choices: SongChoice[];
-  scores: Record<string, PlayerScore>;
-  answers: Record<string, { choiceIndex: number; answeredAt: number }>;
-  roundStartTime: number;
-  roundEndTime: number;
-  roundDuration: number;
-  // Voting for next game
-  votes: Record<string, boolean>; // userId -> vote
-  voteEndsAt: number | null;
-}
-
-export interface UnifiedRoomState {
-  room: string;
-  settings: RoomSettings;
-  playlist: Playlist | null;
-  users: UserSession[];
-  game: GameStateSnapshot;
-}
-
-// ============================================================================
-// WebSocket Message Types
-// ============================================================================
-
-export interface BaseMessage {
+interface BaseMessage {
   type: string;
   timestamp: number;
 }
@@ -176,10 +76,6 @@ export type IncomingMessage =
   | VotePlayAgainMessage
   | BaseMessage;
 
-// ============================================================================
-// Server Response Types
-// ============================================================================
-
 export interface ErrorMessage extends BaseMessage {
   type: "error";
   content: string;
@@ -232,10 +128,6 @@ export interface GameEventMessage extends BaseMessage {
     data: Record<string, unknown>;
   };
 }
-
-// ============================================================================
-// Game WebSocket Message Types
-// ============================================================================
 
 export interface GameStartedMessage extends BaseMessage {
   type: "game_started";
@@ -300,9 +192,6 @@ export type OutgoingMessage =
   | LeaderboardUpdateMessage
   | VoteUpdateMessage;
 
-/**
- * OutgoingMessage with room connection stats added by broadcastToRoom.
- */
 export type BroadcastMessage = OutgoingMessage & {
   connections: number;
   totalConnections: number;
