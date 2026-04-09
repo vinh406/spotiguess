@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams } from "react-router";
-import { useRoomState } from "../hooks/useRoomState";
+import { useRoomState } from "../hooks/room/useRoomState";
 import { ChatBox } from "../components/room/ChatBox";
 import { RoomLobby } from "../components/room/RoomLobby";
 import { SettingsModal } from "../components/room/SettingsModal";
@@ -18,20 +18,24 @@ export default function RoomPage() {
   const effectiveRoomName = roomName || "general";
   const [chatOpen, setChatOpen] = useState(true);
 
+  const { state, actions } = useRoomState();
+
   const {
     currentUser,
     showUsernamePrompt,
-    players,
-    selectedPlaylist,
-    isReady,
     showSettingsModal,
     showPlaylistModal,
     spotifyLink,
-    gameSettings,
-    isHost,
-    canStartGame,
     isStartingGame,
-    currentWarning,
+    availablePlaylists,
+    playlistsLoading,
+    isConnected,
+    chatMessages,
+  } = state.ui;
+
+  const { players, selectedPlaylist, isReady, gameSettings, isHost } = state.metadata;
+
+  const {
     gamePhase,
     currentRound,
     totalRounds,
@@ -44,10 +48,13 @@ export default function RoomPage() {
     hasAnswered,
     selectedChoice,
     endStateData,
-    availablePlaylists,
-    playlistsLoading,
-    isConnected,
-    chatMessages,
+    votes,
+    voteEndsAt,
+  } = state.game;
+
+  const { canStartGame, currentWarning } = state;
+
+  const {
     handleJoinRoom,
     handleLeaveRoom,
     handleToggleReady,
@@ -59,13 +66,11 @@ export default function RoomPage() {
     handleAnswer,
     handleVote,
     handleSendMessage,
-    votes,
-    voteEndsAt,
     setShowSettingsModal,
     setShowPlaylistModal,
-    setShowPlaylistModalWithFetch,
+    handleOpenPlaylistModal,
     setSpotifyLink,
-  } = useRoomState();
+  } = actions;
 
   const isGameActive = gamePhase === "playing" || gamePhase === "roundEnd";
 
@@ -198,7 +203,7 @@ export default function RoomPage() {
                   onToggleReady={handleToggleReady}
                   onStartGame={handleStartGame}
                   onOpenSettings={() => setShowSettingsModal(true)}
-                  onOpenPlaylist={setShowPlaylistModalWithFetch}
+                  onOpenPlaylist={handleOpenPlaylistModal}
                 />
               </div>
             </div>

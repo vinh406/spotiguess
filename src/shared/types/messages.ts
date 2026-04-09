@@ -196,3 +196,5 @@ export type BroadcastMessage = OutgoingMessage & {
   connections: number;
   totalConnections: number;
 };
+
+export type ChatBoxMessage = ChatMessage | UserJoinedMessage | UserLeftMessage | ErrorMessage;
