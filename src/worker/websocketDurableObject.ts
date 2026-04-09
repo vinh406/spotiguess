@@ -548,6 +548,15 @@ export class WebSocketHibernationServer extends DurableObject {
       songs = await getPlaylistTracks(roomPlaylist.id);
     }
 
+    // Check if there are enough unused songs to play another full game
+    const gameState = this.roomManager.getUnifiedRoomState(room).game;
+    const remainingSongs = gameState.songs.length - gameState.currentSongIndex;
+    if (remainingSongs < settings.rounds) {
+      const errorMessage = MessageBuilders.error("Not enough songs available. Please set a larger Spotify playlist.");
+      broadcastToRoom(this.roomManager.getSessions(), room, errorMessage);
+      return;
+    }
+
     // We pass isContinuing=true to keep the songs list and index
     this.roomManager.initGame(songs, settings.rounds, room, true);
 

@@ -172,6 +172,13 @@ export default function RoomPage() {
                   voteEndsAt={voteEndsAt}
                   nextRoundAt={endStateData.nextRoundAt}
                 />
+              ) : isStartingGame ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <LoadingSpinner size="xl" className="text-green-500 mx-auto" />
+                    <p className="mt-4 text-gray-400">Game starting...</p>
+                  </div>
+                </div>
               ) : null}
             </div>
           ) : (

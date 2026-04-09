@@ -209,9 +209,7 @@ export class GameEngine {
     const correctAnswer = this.choices.find((c) => c.isCorrect)!;
     const scores = Array.from(this.scores.values()).sort((a, b) => b.score - a.score);
 
-    if (this.currentSongIndex < this.songs.length - 1) {
-      this.currentSongIndex++;
-    }
+    this.currentSongIndex++;
     this.currentRound++;
 
     return { correctAnswer, scores };

@@ -20,11 +20,12 @@ import type {
   VoteUpdateMessage,
   RoundStartedMessage,
   RoundEndedMessage,
+  ErrorMessage,
 } from "../../shared/types";
 import { DEFAULT_ROOM_SETTINGS } from "../../shared/constants";
 import { useGameSocket } from "./useGameSocket";
 
-type ChatBoxMessage = ChatMessage | UserJoinedMessage | UserLeftMessage;
+type ChatBoxMessage = ChatMessage | UserJoinedMessage | UserLeftMessage | ErrorMessage;
 
 interface RoomState {
   metadata: {
@@ -617,6 +618,7 @@ export function useRoomState() {
           break;
 
         case "error":
+          dispatch({ type: "CHAT_MESSAGE", message: message as ErrorMessage });
           console.error("Server error:", message.content);
           break;
       }
