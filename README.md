@@ -1,54 +1,22 @@
-# React + Vite + Hono + Cloudflare Workers
+# Spotiguess
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/vite-react-template)
+Spotiguess is a multiplayer Spotify song guessing game where players compete to identify songs from a playlist. Players earn points based on correctness and speed, with the fastest and most accurate players climbing the leaderboard.
 
-This template provides a minimal setup for building a React application with TypeScript and Vite, designed to run on Cloudflare Workers. It features hot module replacement, ESLint integration, and the flexibility of Workers deployments.
+## 🌐 Demo
 
-![React + TypeScript + Vite + Cloudflare Workers](https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/fc7b4b62-442b-4769-641b-ad4422d74300/public)
+Check out the live demo: [Spotiguess Demo](https://spotigames.vinhnguyenthanh-dev.workers.dev/)
 
-<!-- dash-content-start -->
+## 🚀 Quick Start
 
-🚀 Supercharge your web development with this powerful stack:
-
-- [**React**](https://react.dev/) - A modern UI library for building interactive interfaces
-- [**Vite**](https://vite.dev/) - Lightning-fast build tooling and development server
-- [**Hono**](https://hono.dev/) - Ultralight, modern backend framework
-- [**Cloudflare Workers**](https://developers.cloudflare.com/workers/) - Edge computing platform for global deployment
-
-### ✨ Key Features
-
-- 🔥 Hot Module Replacement (HMR) for rapid development
-- 📦 TypeScript support out of the box
-- 🛠️ ESLint configuration included
-- ⚡ Zero-config deployment to Cloudflare's global network
-- 🎯 API routes with Hono's elegant routing
-- 🔄 Full-stack development setup
-- 🔎 Built-in Observability to monitor your Worker
-
-Get started in minutes with local development or deploy directly via the Cloudflare dashboard. Perfect for building modern, performant web applications at the edge.
-
-<!-- dash-content-end -->
-
-## Getting Started
-
-To start a new project with this template, run:
-
-```bash
-npm create cloudflare@latest -- --template=cloudflare/templates/vite-react-template
-```
-
-A live deployment of this template is available at:
-[https://react-vite-template.templates.workers.dev](https://react-vite-template.templates.workers.dev)
-
-## Development
-
-Install dependencies:
+### Installation
 
 ```bash
 npm install
 ```
 
-Start the development server with:
+### Development
+
+Start the development server:
 
 ```bash
 npm run dev
@@ -56,35 +24,39 @@ npm run dev
 
 Your application will be available at [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
-## Production
+### Production Build
 
-Build your project for production:
+Build for production:
 
 ```bash
 npm run build
 ```
 
-Preview your build locally:
+Preview the build locally:
 
 ```bash
 npm run preview
 ```
 
-Deploy your project to Cloudflare Workers:
+Deploy to Cloudflare Workers:
 
 ```bash
 npm run build && npm run deploy
 ```
 
-Monitor your workers:
+## 🎮 How to Play
 
-```bash
-npx wrangler tail
-```
+1. **Create or Join a Room**: The host creates a room and shares the 8-character code with friends.
+2. **Configure Settings**: The host selects a playlist and sets game parameters (rounds, time per round, audio duration).
+3. **Mark Ready**: All players mark themselves as ready.
+4. **Game Begins**: Players listen to 10-second song previews and guess the correct track from multiple choices.
+5. **Scoring**: Points are awarded based on:
+   - Base points (100 per correct answer)
+   - Speed bonus (up to 100 extra points)
+   - Streak bonus (10 extra points per consecutive correct answer)
+6. **Leaderboard**: After each round, players see updated scores and rankings.
+7. **Play Again**: After the game ends, players can vote to play again with the same room, or return to the lobby.
 
-## Additional Resources
+# Architechture
 
-- [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers/)
-- [Vite Documentation](https://vitejs.dev/guide/)
-- [React Documentation](https://reactjs.org/)
-- [Hono Documentation](https://hono.dev/)
+See [ARCHITECTURE.md](ARCHITECTURE.md) for details on the system architecture and design decisions.

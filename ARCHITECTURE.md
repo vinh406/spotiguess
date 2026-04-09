@@ -1,9 +1,5 @@
 # Spotiguess Architecture
 
-## Overview
-
-Spotiguess is a multiplayer Spotify song guessing game where players create rooms, join via shared links, and compete to guess songs from a blended playlist. Points are awarded based on correctness and speed.
-
 ## Technology Stack
 
 ### Backend
@@ -197,37 +193,37 @@ Rooms are managed entirely in the Durable Object:
 
 ### Client → Server
 
-| Event | Description |
-|-------|-------------|
-| `join` | Join a room with username, room code, userId, and optional avatar |
-| `leave` | Leave the current room |
-| `chat_message` | Send a chat message |
-| `ready` | Toggle ready status |
-| `update_settings` | Update room settings (host only) |
-| `update_playlist` | Update selected playlist (host only) |
-| `start_game` | Start the game (host only) |
-| `answer` | Submit an answer choice |
-| `vote_play_again` | Vote yes/no to play again |
+| Event             | Description                                                       |
+| ----------------- | ----------------------------------------------------------------- |
+| `join`            | Join a room with username, room code, userId, and optional avatar |
+| `leave`           | Leave the current room                                            |
+| `chat_message`    | Send a chat message                                               |
+| `ready`           | Toggle ready status                                               |
+| `update_settings` | Update room settings (host only)                                  |
+| `update_playlist` | Update selected playlist (host only)                              |
+| `start_game`      | Start the game (host only)                                        |
+| `answer`          | Submit an answer choice                                           |
+| `vote_play_again` | Vote yes/no to play again                                         |
 
 ### Server → Client
 
-| Event | Description |
-|-------|-------------|
-| `user_joined` | Player joined the room |
-| `user_left` | Player left the room |
-| `users_updated` | Player list changed |
-| `room_created` | Room was created (first player) |
+| Event                | Description                                  |
+| -------------------- | -------------------------------------------- |
+| `user_joined`        | Player joined the room                       |
+| `user_left`          | Player left the room                         |
+| `users_updated`      | Player list changed                          |
+| `room_created`       | Room was created (first player)              |
 | `unified_room_state` | Full room state for new/reconnecting players |
-| `settings_updated` | Settings were changed |
-| `playlist_updated` | Playlist was changed |
-| `game_event` | Game lifecycle events (styled notifications) |
-| `game_started` | Game is starting with round info |
-| `round_started` | New round starting with song and choices |
-| `round_ended` | Round ended with correct answer and scores |
-| `answer_result` | Result of player's answer submission |
-| `leaderboard_update` | Updated scores/leaderboard |
-| `vote_update` | Vote status update |
-| `error` | Error message |
+| `settings_updated`   | Settings were changed                        |
+| `playlist_updated`   | Playlist was changed                         |
+| `game_event`         | Game lifecycle events (styled notifications) |
+| `game_started`       | Game is starting with round info             |
+| `round_started`      | New round starting with song and choices     |
+| `round_ended`        | Round ended with correct answer and scores   |
+| `answer_result`      | Result of player's answer submission         |
+| `leaderboard_update` | Updated scores/leaderboard                   |
+| `vote_update`        | Vote status update                           |
+| `error`              | Error message                                |
 
 ## Scoring System
 
@@ -287,7 +283,7 @@ gameResults: id, roomCode, totalRounds, playerCount, startedAt, completedAt,
 
 1. **Ephemeral State**: Room and game state lives only in Durable Object memory, not in database
 2. **WebSocket-First**: All room/game operations via WebSocket, HTTP only for auth and user data
-3. **Host Control**: First player is host, controls settings and game start
+3. **Host Control**: First player to join becomes host, controls settings and game start
 4. **Real-time Updates**: All state changes broadcast to room members immediately
 5. **Spotify Integration**: Use preview URLs for playback, fetch playlist tracks for gameplay
 6. **Smart Decoys**: Last.fm API provides similar tracks for more challenging wrong answers
@@ -350,7 +346,10 @@ spotiguess/
 │   │   │   ├── room/                # Room lobby components
 │   │   │   └── ui/                   # Base UI components
 │   │   ├── contexts/                # React contexts (Auth)
-│   │   ├── hooks/                   # Custom hooks (useRoomState, useGameSocket, useAuth)
+│   │   ├── hooks/
+│   │   │   ├── room/                # Room-related hooks (useRoomState, useRoomActions)
+│   │   │   ├── useAuth.ts           # Auth hook
+│   │   │   └── useGameSocket.ts     # WebSocket hook
 │   │   ├── pages/                   # Page components
 │   │   ├── App.tsx
 │   │   └── main.tsx
@@ -361,18 +360,29 @@ spotiguess/
 │   │   │   ├── better-auth/         # Auth configuration
 │   │   │   ├── lastfm/              # Last.fm API client
 │   │   │   ├── spotify/             # Spotify API client
-│   │   │   └── websocket/           # WebSocket handlers
-│   │   │       ├── index.ts         # Exports
+│   │   │   └── websocket/
+│   │   │       ├── game/            # Game logic modules
+│   │   │       │   ├── GameEngine.ts     # Game engine class
+│   │   │       │   └── GameUtils.ts      # Game helper functions
+│   │   │       ├── handlers/         # WebSocket message handlers
+│   │   │       │   ├── roomHandler.ts    # Room-related handlers
+│   │   │       │   ├── gameHandler.ts    # Game-related handlers
+│   │   │       │   ├── chatHandler.ts    # Chat handler
+│   │   │       │   └── index.ts         # Main router
 │   │   │       ├── broadcast.ts     # Broadcasting utilities
-│   │   │       ├── gameEngine.ts    # Game logic
-│   │   │       ├── messageBuilders.ts
+│   │   │       ├── messageBuilders.ts # Message builders
 │   │   │       ├── roomManager.ts   # Room state management
-│   │   │       └── sessionManager.ts
+│   │   │       └── sessionManager.ts # Session management
 │   │   ├── index.ts                # Hono app entry
 │   │   └── websocketDurableObject.ts
 │   └── shared/                      # Shared types and constants
-│       ├── types.ts
-│       └── constants.ts
+│       ├── types/
+│       │   ├── index.ts             # Re-exports all types
+│       │   ├── player.ts            # Player, UserSession, PlayerScore
+│       │   ├── room.ts              # RoomSettings, Playlist, UnifiedRoomState
+│       │   ├── game.ts              # Song, SongChoice, GamePhase, GameStateSnapshot
+│       │   └── messages.ts          # All message types
+│       └── constants.ts             # Shared constants
 ├── drizzle/                         # Database migrations
 ├── wrangler.json                    # Cloudflare config
 └── package.json
