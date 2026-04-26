@@ -145,7 +145,7 @@ export default function RoomPage() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+        <div className="flex-1 min-h-0 flex overflow-hidden relative">
         {/* Game/Lobby Area */}
         <main className="flex-1 min-w-0 overflow-hidden">
           {isGameActive ? (
@@ -212,8 +212,10 @@ export default function RoomPage() {
 
         {/* Chat Sidebar */}
         <aside
-          className={`shrink-0 border-l border-gray-700/50 bg-gray-900/50 backdrop-blur-sm transition-all duration-300 ease-in-out overflow-hidden ${
-            chatOpen ? "w-72 sm:w-80" : "w-0"
+          className={`shrink-0 border-l border-gray-700/50 bg-gray-900/50 backdrop-blur-xl transition-all duration-300 ease-in-out overflow-hidden ${
+            chatOpen
+              ? "absolute inset-y-0 right-0 w-72 z-20 lg:relative sm:w-80 translate-x-0"
+              : "absolute inset-y-0 right-0 w-72 z-20 lg:w-0 translate-x-full lg:translate-x-0"
           }`}
         >
           <div className="w-72 sm:w-80 h-full">
