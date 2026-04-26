@@ -1,6 +1,7 @@
 import { useState, useEffect, ReactNode } from "react";
 import { createAuthClient } from "better-auth/client";
 import { AuthContext, User } from "../hooks/useAuth";
+
 const authClient = createAuthClient();
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -23,10 +24,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async () => {
+  const login = async (provider: "spotify" | "google" = "spotify") => {
     try {
       await authClient.signIn.social({
-        provider: "spotify",
+        provider,
       });
     } catch (error) {
       console.error("Failed to login:", error);
