@@ -15,10 +15,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center pt-6">
       <div className="w-full max-w-md">
         {/* Logo and Title */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-500/20">
             <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
@@ -31,7 +31,7 @@ export default function LoginPage() {
         {/* Login Card */}
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-3xl p-8 border border-gray-700/50 shadow-xl">
           <h2 className="text-2xl font-bold text-white mb-2 text-center">Welcome!</h2>
-          <p className="text-gray-400 text-center mb-8">
+          <p className="text-gray-400 text-center mb-6">
             Sign in with your Spotify account to start playing
           </p>
 
@@ -39,7 +39,7 @@ export default function LoginPage() {
           <Button
             onClick={handleSpotifyLogin}
             disabled={isLoading}
-            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-3"
+            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-3 mb-6"
             size="lg"
           >
             {isLoading ? (
@@ -53,11 +53,11 @@ export default function LoginPage() {
           </Button>
 
           {/* Divider */}
-          <div className="flex items-center my-8">
+          {/* <div className="flex items-center my-8">
             <div className="flex-1 border-t border-gray-700"></div>
             <span className="px-4 text-gray-500 text-sm">or</span>
             <div className="flex-1 border-t border-gray-700"></div>
-          </div>
+          </div> */}
 
           {/* Features */}
           <div className="space-y-4">
