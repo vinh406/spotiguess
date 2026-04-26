@@ -3,7 +3,6 @@ import { useNavigate } from "react-router";
 import { useAuth } from "../hooks/useAuth";
 import Header from "../components/Header";
 import ActionCard from "../components/common/ActionCard";
-import StatCard from "../components/common/StatCard";
 import { Input, Button } from "../components/ui";
 import { generateRoomCode } from "../../shared/constants";
 
@@ -68,7 +67,7 @@ export default function HomePage() {
       </Header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-6 py-16">
+      <main className="max-w-4xl mx-auto px-6 py-12">
         <div className="text-center mb-16">
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
             Welcome back,{" "}
@@ -76,10 +75,6 @@ export default function HomePage() {
               {user?.name?.split(" ")[0] || "Player"}
             </span>
           </h1>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Ready to challenge your friends? Create a new room or join an existing one to start
-            guessing songs!
-          </p>
         </div>
 
         {/* Action Cards */}
@@ -142,13 +137,6 @@ export default function HomePage() {
               className="mb-4"
             />
           </ActionCard>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="mt-16 grid grid-cols-3 gap-6">
-          <StatCard value={0} label="Games Played" />
-          <StatCard value={0} label="Total Wins" />
-          <StatCard value={0} label="Songs Guessed" />
         </div>
       </main>
     </div>
