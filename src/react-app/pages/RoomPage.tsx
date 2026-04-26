@@ -117,7 +117,7 @@ export default function RoomPage() {
             <Button
               size="sm"
               onClick={() => setChatOpen(!chatOpen)}
-              className={`relative p-2 rounded-lg transition-all border ${
+              className={`relative ${
                 chatOpen
                   ? "bg-green-500/20 border-green-500/30 text-green-400"
                   : "bg-gray-800/50 border-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-700/50"
@@ -145,7 +145,7 @@ export default function RoomPage() {
       </header>
 
       {/* Main Content */}
-        <div className="flex-1 min-h-0 flex overflow-hidden relative">
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
         {/* Game/Lobby Area */}
         <main className="flex-1 min-w-0 overflow-hidden">
           {isGameActive ? (

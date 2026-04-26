@@ -52,7 +52,7 @@ export default function HomePage() {
               <img src={user.image} alt={user.name} className="w-8 h-8 rounded-full" />
             )}
             <span className="text-gray-300 font-medium hidden md:block">{user.name}</span>
-            <Button variant="ghost" onClick={handleLogout} className="p-2">
+            <Button variant="ghost" onClick={handleLogout}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"

@@ -197,7 +197,7 @@ export function GameView({
                 key={choice.index}
                 onClick={() => handleChoice(choice.index)}
                 disabled={hasAnswered}
-                className={`w-full px-3 py-2.5 sm:py-3 rounded-xl text-left ${
+                className={`w-full text-left ${
                   hasAnswered
                     ? isSelected
                       ? "bg-green-500/30 border-2 border-green-500"

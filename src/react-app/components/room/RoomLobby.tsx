@@ -55,11 +55,7 @@ export function RoomLobby({
             variant="secondary"
             onClick={onOpenPlaylist}
             disabled={!isHost}
-            className={`flex items-center gap-3 px-4 py-3 ${
-              isHost
-                ? "bg-gray-700/30 hover:bg-gray-700/50 border-gray-600/30"
-                : "bg-gray-700/10 border-gray-600/10 opacity-50 cursor-not-allowed"
-            }`}
+            className={`flex items-center gap-3`}
           >
             <svg
               className="w-5 h-5 text-green-400"
@@ -96,7 +92,8 @@ export function RoomLobby({
           <Button
             variant="secondary"
             onClick={onOpenSettings}
-            className="flex items-center gap-3 px-4 py-3 bg-gray-700/30 hover:bg-gray-700/50 transition-all border border-gray-600/30"
+            disabled={!isHost}
+            className="flex items-center gap-3"
           >
             <svg
               className="w-5 h-5 text-gray-400"
@@ -208,7 +205,8 @@ export function RoomLobby({
             <Button
               onClick={onToggleReady}
               variant={isReady ? "primary" : "secondary"}
-              className={`w-full py-4 rounded-xl font-semibold text-lg ${
+              size="lg"
+              className={`w-full ${
                 isReady ? "bg-green-500 text-white hover:bg-green-600" : "text-gray-300"
               }`}
             >
@@ -220,7 +218,8 @@ export function RoomLobby({
             <Button
               onClick={onStartGame}
               disabled={!canStartGame || isStartingGame}
-              className={`w-full py-4 rounded-xl font-semibold text-lg transition-all ${
+              size="lg"
+              className={`w-full transition-all ${
                 canStartGame && !isStartingGame
                   ? "bg-gradient-to-r from-green-400 to-green-600 text-white hover:from-green-500 hover:to-green-700"
                   : "bg-gray-700/30 text-gray-500 cursor-not-allowed"

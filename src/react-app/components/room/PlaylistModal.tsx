@@ -34,7 +34,7 @@ export function PlaylistModal({
       maxWidth="lg"
       scrollable
       footer={
-        <Button variant="secondary" onClick={onClose} className="w-full py-3" size="lg">
+        <Button variant="secondary" onClick={onClose} className="w-full" size="lg">
           Cancel
         </Button>
       }
@@ -59,7 +59,7 @@ export function PlaylistModal({
       {/* Create Blend Button */}
       <Button
         onClick={onCreateBlend}
-        className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all font-medium mb-6"
+        className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all mb-6"
         size="lg"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

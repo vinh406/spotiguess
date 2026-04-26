@@ -39,7 +39,8 @@ export default function LoginPage() {
           <Button
             onClick={handleSpotifyLogin}
             disabled={isLoading}
-            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-3 mb-6"
+            variant="primary"
+            className="w-full flex items-center justify-center gap-3 mb-3"
             size="lg"
           >
             {isLoading ? (

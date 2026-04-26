@@ -212,17 +212,13 @@ export function RoundEndView({
                 Continue playing? ({votesCount}/{totalPlayers} voted) - {voteTimeLeft}s left
               </p>
               <div className="flex gap-2">
-                <Button
-                  onClick={() => onPlayAgain(true)}
-                  className="flex-1 py-2.5 text-sm"
-                  size="md"
-                >
+                <Button onClick={() => onPlayAgain(true)} className="flex-1" size="md">
                   Yes
                 </Button>
                 <Button
                   variant="secondary"
                   onClick={() => onPlayAgain(false)}
-                  className="flex-1 py-2.5 text-sm"
+                  className="flex-1"
                   size="md"
                 >
                   No

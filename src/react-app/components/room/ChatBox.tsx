@@ -201,12 +201,7 @@ export function ChatBox({
             size="sm"
             className="flex-1"
           />
-          <Button
-            onClick={handleSend}
-            disabled={!inputMessage.trim() || !isConnected}
-            size="sm"
-            className="p-2"
-          >
+          <Button onClick={handleSend} disabled={!inputMessage.trim() || !isConnected} size="sm">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"

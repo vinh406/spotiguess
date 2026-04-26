@@ -45,7 +45,7 @@ export default function ActionCard({
         variant={variant}
         onClick={onClick}
         disabled={isLoading || disabled}
-        className="w-full py-4 px-6 rounded-xl font-semibold text-lg"
+        className="w-full"
         size="lg"
       >
         {isLoading ? (
