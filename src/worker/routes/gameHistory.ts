@@ -1,8 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { auth } from "../services/better-auth";
+import { getAuthenticatedUser } from "../services/auth";
 import { createGameHistoryService } from "../services/gameHistory/GameHistoryService";
 import { getDb } from "../db";
-import type { DbInstance } from "../db";
 
 const ErrorSchema = z.object({
   error: z.string(),
@@ -57,12 +56,6 @@ const PaginatedGamesSchema = z.object({
 
 function createGameHistoryHandlers() {
   const app = new OpenAPIHono<{ Bindings: Env }>();
-
-  const getAuthenticatedUser = async (c: { env: Env; req: { raw: Request } }, db: DbInstance) => {
-    const authInstance = auth(c.env, db);
-    const session = await authInstance.api.getSession(c.req.raw);
-    return session?.user;
-  };
 
   // GET / - list user's games
   const listGamesRoute = createRoute({

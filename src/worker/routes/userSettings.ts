@@ -1,9 +1,8 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import { getDb } from "../db";
-import type { DbInstance } from "../db";
 import { user } from "../db/schema";
-import { auth } from "../services/better-auth";
+import { getAuthenticatedUser } from "../services/auth";
 
 const ErrorSchema = z.object({
   error: z.string(),
@@ -53,12 +52,6 @@ const UserIdParamSchema = z.object({
 
 function createUserSettingsHandlers() {
   const app = new OpenAPIHono<{ Bindings: Env }>();
-
-  const getAuthenticatedUser = async (c: { env: Env; req: { raw: Request } }, db: DbInstance) => {
-    const authInstance = auth(c.env, db);
-    const session = await authInstance.api.getSession(c.req.raw);
-    return session?.user;
-  };
 
   // PUT /profile - Update display name
   const updateProfileRoute = createRoute({

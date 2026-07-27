@@ -1,9 +1,8 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { eq, count } from "drizzle-orm";
-import { auth } from "../services/better-auth";
+import { getAuthenticatedUser } from "../services/auth";
 import { createLibraryService } from "../services/library/LibraryService";
 import { getDb } from "../db";
-import type { DbInstance } from "../db";
 import { sseStream } from "../services/sse";
 import { libraryPlaylists, libraryAlbums } from "../db/schema";
 
@@ -167,13 +166,6 @@ const TrackIdParamSchema = z.object({
 
 export function createLibraryHandlers() {
   const app = new OpenAPIHono<{ Bindings: Env }>();
-
-  // Helper to get authenticated user
-  const getAuthenticatedUser = async (c: { env: Env; req: { raw: Request } }, db: DbInstance) => {
-    const authInstance = auth(c.env, db);
-    const session = await authInstance.api.getSession(c.req.raw);
-    return session?.user;
-  };
 
   // GET /items - Get paginated top-level library items
   const getItemsRoute = createRoute({
